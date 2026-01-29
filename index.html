@@ -3,262 +3,337 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Validación de Arriendo - Deteco IC SA</title>
+    <title>Arriendos Deteco - Gestión de Terreno</title>
     
-    <!-- Librerías Externas -->
+    <!-- Librerías -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Excel, PDF Text Extraction & PDF Generation -->
+    <!-- Excel & PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    
-    <!-- Firma Digital -->
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        window.FB = { initializeApp, getFirestore, doc, setDoc, getDoc, collection, getAuth, signInAnonymously, onAuthStateChanged };
+    </script>
+
+    <script>
+        // Configuración de Tailwind para soportar modo oscuro por clase
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        deteco: '#f37021',
+                    },
+                    borderRadius: {
+                        'premium': '1.25rem',
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #1e293b; touch-action: manipulation; }
-        .rounded-premium { border-radius: 1rem; }
-        .bg-deteco { background-color: #f37021; }
-        .text-deteco { color: #f37021; }
-        .border-deteco { border-color: #f37021; }
+        body { font-family: 'Inter', sans-serif; touch-action: manipulation; transition: background-color 0.3s ease; }
         
-        /* Animación Pulse-Fade Logo */
         @keyframes pulse-fade {
             0%, 100% { opacity: 1; filter: saturate(100%); transform: scale(1); }
-            50% { opacity: 0.3; filter: saturate(10%) blur(1px); transform: scale(0.95); }
+            50% { opacity: 0.3; filter: saturate(20%) blur(1px); transform: scale(0.95); }
         }
-        .animate-logo-ai { animation: pulse-fade 2s infinite ease-in-out; }
+        .animate-logo-ai { animation: pulse-fade 2.2s infinite ease-in-out; }
 
-        /* Compactación de Tabla */
-        td, th { padding: 0.4rem 0.5rem !important; font-size: 0.7rem; }
-        
-        /* Contenedor de Firma */
-        .signature-wrapper {
-            border: 2px dashed #cbd5e1;
-            background: #fff;
-            width: 100%;
-            height: 150px;
-            position: relative;
-        }
+        @keyframes fade-out { 0% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+        .splash { animation: fade-out 2.5s forwards; }
+
+        .signature-wrapper { border: 2px dashed #cbd5e1; background: #fff; width: 100%; height: 160px; border-radius: 1rem; overflow: hidden; position: relative; }
+        .dark .signature-wrapper { border-color: #475569; background: #f8fafc; }
         canvas { width: 100%; height: 100%; cursor: crosshair; }
 
-        @media (max-width: 640px) {
-            .hide-mobile { display: none; }
-            h1 { font-size: 1.25rem !important; }
-        }
+        td, th { padding: 0.4rem 0.5rem !important; font-size: 0.72rem; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 dark:bg-slate-950">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef } = React;
 
-        const apiKey = "AIzaSyBE7rU55LgDSHZY2rY_W31GFDobCCcf-H0"; 
+        const apiKey = ""; 
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'deteco-arriendos';
 
-        // Configuración de PDF.js Worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
         const App = () => {
+            const [showSplash, setShowSplash] = useState(true);
+            const [darkMode, setDarkMode] = useState(false);
             const [data, setData] = useState([]);
             const [filterObra, setFilterObra] = useState('Todas');
             const [searchTerm, setSearchTerm] = useState('');
-            const [loadingAI, setLoadingAI] = useState(false);
+            const [loading, setLoading] = useState(false);
+            const [db, setDb] = useState(null);
             
-            const [modals, setModals] = useState({ add: false, edit: false, validate: false, upload: false });
+            // Modales
+            const [modals, setModals] = useState({ add: false, edit: false, validate: false, upload: false, obras: false, share: false });
             const [form, setForm] = useState({ id: null, obra: '', nuevaObra: '', item: '', serie: '', valor: 0, dias: 1 });
-            const [terrenoData, setTerrenoData] = useState({ nombre: '', periodo: 'ENERO 2026' });
+            const [terrenoData, setTerrenoData] = useState({ nombre: '', rut: '', periodo: 'ENERO 2026' });
             const [providerName, setProviderName] = useState('');
+            const [shareUrl, setShareUrl] = useState('');
 
             const fileInputRef = useRef(null);
             const signaturePadRef = useRef(null);
             const canvasRef = useRef(null);
 
-            useEffect(() => { 
-                lucide.createIcons(); 
+            // --- TEMA Y CONFIGURACIÓN INICIAL ---
+            useEffect(() => {
+                // Detectar preferencia del sistema
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                setDarkMode(prefersDark);
+                if (prefersDark) document.documentElement.classList.add('dark');
+
+                const initApp = async () => {
+                    const app = window.FB.initializeApp(firebaseConfig);
+                    const auth = window.FB.getAuth(app);
+                    const firestore = window.FB.getFirestore(app);
+                    setDb(firestore);
+
+                    await window.FB.signInAnonymously(auth);
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const docId = urlParams.get('id');
+                    if (docId) {
+                        const docRef = window.FB.doc(firestore, 'artifacts', appId, 'public', 'data', 'arriendos', docId);
+                        const docSnap = await window.FB.getDoc(docRef);
+                        if (docSnap.exists()) {
+                            setData(docSnap.data().records || []);
+                        }
+                    }
+                    setTimeout(() => setShowSplash(false), 2500);
+                };
+                initApp();
+            }, []);
+
+            // Alternar modo oscuro manualmente
+            const toggleTheme = () => {
+                const newMode = !darkMode;
+                setDarkMode(newMode);
+                if (newMode) document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            };
+
+            useEffect(() => {
+                lucide.createIcons();
                 if (modals.validate && canvasRef.current) {
                     signaturePadRef.current = new SignaturePad(canvasRef.current);
                 }
-            }, [modals.validate]);
+            }, [modals.validate, loading, showSplash]);
 
-            // --- EXTRACCIÓN DE TEXTO PDF ---
-            const extractTextFromPDF = async (file) => {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                let fullText = "";
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    fullText += textContent.items.map(item => item.str).join(" ") + "\n";
-                }
-                return fullText;
-            };
-
-            // --- ANÁLISIS IA GEMINI ---
-            const analyzeWithGemini = async (text, provider) => {
-                setLoadingAI(true);
-                const prompt = `Analiza estos datos del proveedor "${provider}" y extrae el detalle de arriendos.
-                Ignora totales y saldos antiguos. Clasifica por Obra.
-                Devuelve JSON: { "records": [{ "obra": "...", "item": "...", "serie": "...", "valor": 0, "dias": 0 }] }`;
-
+            // --- IA GEMINI: ANÁLISIS ---
+            const analyzeWithIA = async (text, provider) => {
+                setLoading(true);
+                const prompt = `Analiza los datos de arriendo del proveedor "${provider}" para la empresa Deteco IC SA. Extrae el detalle: Obra, Item, Serie, Valor Unitario Día y Cantidad de Días. Devuelve JSON: { "records": [{ "obra": "...", "item": "...", "serie": "...", "valor": 0, "dias": 0 }] }`;
                 try {
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            contents: [{ parts: [{ text: `Texto extraído:\n${text}` }] }],
+                            contents: [{ parts: [{ text: `Analiza:\n${text}` }] }],
                             systemInstruction: { parts: [{ text: prompt }] },
                             generationConfig: { responseMimeType: "application/json" }
                         })
                     });
-                    const result = await response.json();
-                    const aiData = JSON.parse(result.candidates[0].content.parts[0].text);
-                    const formatted = aiData.records.map((r, i) => ({ ...r, id: Date.now() + i, neto: r.valor * r.dias }));
-                    setData([...data, ...formatted].sort((a, b) => a.obra.localeCompare(b.obra)));
-                } catch (e) { console.error("Error IA:", e); }
-                finally { setLoadingAI(false); }
+                    const res = await response.json();
+                    const aiResult = JSON.parse(res.candidates[0].content.parts[0].text);
+                    const formatted = aiResult.records.map((r, i) => ({ ...r, id: Date.now() + i, neto: r.valor * r.dias }));
+                    setData([...data, ...formatted].sort((a,b) => a.obra.localeCompare(b.obra)));
+                } catch (e) { console.error(e); }
+                finally { setLoading(false); }
             };
 
             const handleFile = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 setModals({...modals, upload: false});
-
+                setLoading(true);
                 let text = "";
                 if (file.type === "application/pdf") {
-                    text = await extractTextFromPDF(file);
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        text += content.items.map(it => it.str).join(" ") + "\n";
+                    }
                 } else {
                     const reader = new FileReader();
                     reader.onload = (evt) => {
                         const wb = XLSX.read(evt.target.result, { type: 'binary' });
                         text = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
-                        analyzeWithGemini(text, providerName);
+                        analyzeWithIA(text, providerName);
                     };
                     reader.readAsBinaryString(file);
                     return;
                 }
-                analyzeWithGemini(text, providerName);
+                analyzeWithIA(text, providerName);
+            };
+
+            const saveToCloud = async () => {
+                if (!db || data.length === 0) return;
+                setLoading(true);
+                const docId = crypto.randomUUID();
+                const docRef = window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'arriendos', docId);
+                await window.FB.setDoc(docRef, { records: data, timestamp: Date.now() });
+                const finalLink = `${window.location.origin}${window.location.pathname}?id=${docId}`;
+                setShareUrl(finalLink);
+                setModals({ ...modals, share: true });
+                setLoading(false);
             };
 
             const obrasList = useMemo(() => [...new Set(data.map(d => d.obra))].sort(), [data]);
             const filteredData = useMemo(() => data.filter(i => (filterObra === 'Todas' || i.obra === filterObra) && i.item.toLowerCase().includes(searchTerm.toLowerCase())), [data, filterObra, searchTerm]);
             const totalGeneral = filteredData.reduce((s, i) => s + i.neto, 0);
+            const totalsByObra = useMemo(() => data.reduce((acc, curr) => { acc[curr.obra] = (acc[curr.obra] || 0) + curr.neto; return acc; }, {}), [data]);
 
-            // --- GENERAR PDF CON FIRMA ---
-            const finalizeValidation = (e) => {
+            const finalizeValidation = async (e) => {
                 e.preventDefault();
                 if (signaturePadRef.current.isEmpty()) return;
-
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const docPdf = new jsPDF();
                 const now = new Date().toLocaleString('es-CL');
-                const sigImage = signaturePadRef.current.toDataURL();
-
+                const sigImg = signaturePadRef.current.toDataURL();
                 const logo = new Image(); logo.src = 'logo.png';
-                doc.addImage(logo, 'PNG', 14, 10, 25, 10);
-                doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-                doc.text("Estado de Pago de Arriendo de Herramientas", 105, 30, { align: "center" });
-                
-                doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(100);
-                doc.text(`VALIDACIÓN PROFESIONAL DE TERRENO`, 105, 36, { align: "center" });
-
-                doc.setTextColor(30); doc.setFontSize(9);
-                doc.text(`Autorizado por: ${terrenoData.nombre.toUpperCase()}`, 14, 50);
-                doc.text(`Periodo: ${terrenoData.periodo}`, 14, 55);
-                doc.text(`Timestamp: ${now}`, 14, 60);
-
-                doc.autoTable({
+                docPdf.addImage(logo, 'PNG', 14, 10, 25, 10);
+                docPdf.setFont("helvetica", "bold"); docPdf.setFontSize(16);
+                docPdf.text("Estado de Pago de Arriendo de Herramientas", 105, 30, { align: "center" });
+                docPdf.setFontSize(8); docPdf.setTextColor(100);
+                docPdf.text(`VALIDACIÓN PROFESIONAL DE TERRENO`, 105, 36, { align: "center" });
+                docPdf.setTextColor(30); docPdf.setFontSize(9);
+                docPdf.text(`Autorizado por: ${terrenoData.nombre.toUpperCase()}`, 14, 50);
+                docPdf.text(`RUT: ${terrenoData.rut}`, 14, 55);
+                docPdf.text(`Timestamp: ${now}`, 14, 60);
+                docPdf.autoTable({
                     startY: 68,
                     head: [['OBRA', 'DESCRIPCIÓN', 'SERIE', 'V. DÍA', 'DÍAS', 'NETO']],
                     body: filteredData.map(d => [d.obra, d.item, d.serie, `$${d.valor.toLocaleString()}`, d.dias, `$${d.neto.toLocaleString()}`]),
-                    theme: 'striped', headStyles: { fillColor: [243, 112, 33], fontSize: 7 },
+                    theme: 'striped', headStyles: { fillColor: [243, 112, 33], fontSize: 7.5 },
                     styles: { fontSize: 7, cellPadding: 1 }
                 });
-
-                const finalY = doc.lastAutoTable.finalY + 10;
-                doc.setFont("helvetica", "bold");
-                doc.text(`TOTAL NETO APROBADO: $${totalGeneral.toLocaleString()} CLP`, 196, finalY, { align: 'right' });
-
-                doc.addImage(sigImage, 'PNG', 75, finalY + 15, 60, 20);
-                doc.line(75, finalY + 35, 135, finalY + 35);
-                doc.setFontSize(8); doc.text("FIRMA PROFESIONAL DE TERRENO", 105, finalY + 40, { align: "center" });
-
-                doc.save(`Validacion_${filterObra}_${Date.now()}.pdf`);
+                const finalY = docPdf.lastAutoTable.finalY + 10;
+                docPdf.setFont("helvetica", "bold");
+                docPdf.text(`TOTAL NETO APROBADO: $${totalGeneral.toLocaleString()} CLP`, 196, finalY, { align: 'right' });
+                docPdf.addImage(sigImg, 'PNG', 75, finalY + 15, 60, 20);
+                docPdf.line(75, finalY + 35, 135, finalY + 35);
+                docPdf.setFontSize(8); docPdf.text("FIRMA PROFESIONAL DE TERRENO", 105, finalY + 40, { align: "center" });
+                docPdf.setFont("helvetica", "italic"); docPdf.setFontSize(7); docPdf.setTextColor(100);
+                docPdf.text("valida y autoriza los arriendos mencionados en este documento", 105, finalY + 45, { align: "center" });
+                const pdfBlob = docPdf.output('blob');
+                const file = new File([pdfBlob], `Validacion_Deteco.pdf`, { type: "application/pdf" });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try { await navigator.share({ files: [file], title: 'Estado de Pago Arriendo', text: 'Comprobante de validación de terreno.' }); } catch (err) { docPdf.save(file.name); }
+                } else { docPdf.save(file.name); }
                 setModals({ ...modals, validate: false });
             };
 
+            if (showSplash) {
+                return (
+                    <div className="fixed inset-0 z-[200] bg-slate-900 dark:bg-white flex flex-col items-center justify-center text-white dark:text-slate-900 splash">
+                        <img src="logo 2.png" className="h-24 w-auto mb-6 animate-logo-ai dark:invert" />
+                        <h2 className="text-3xl font-black tracking-tighter uppercase mb-2 italic">Arriendos Deteco</h2>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.4em]">Creado por Iván Vivanco</p>
+                    </div>
+                );
+            }
+
             return (
-                <div className="min-h-screen flex flex-col">
-                    {loadingAI && (
+                <div className="min-h-screen flex flex-col transition-colors duration-300">
+                    {loading && (
                         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center text-white p-6">
                             <img src="logo 2.png" className="h-20 w-auto mb-6 animate-logo-ai" />
-                            <h3 className="text-xl font-black uppercase tracking-tighter">IA Gemini Analizando...</h3>
+                            <p className="font-black text-deteco animate-pulse tracking-[0.3em]">PROCESANDO...</p>
                         </div>
                     )}
 
-                    <nav className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-40 shadow-sm flex justify-between items-center">
+                    {/* BOTÓN FLOTANTE TEMA */}
+                    <button 
+                        onClick={toggleTheme}
+                        className="fixed bottom-6 right-6 z-50 bg-white dark:bg-slate-800 text-slate-800 dark:text-white p-4 rounded-full shadow-2xl border border-slate-200 dark:border-slate-700 active:scale-90 transition-all"
+                    >
+                        <i data-lucide={darkMode ? "sun" : "moon"} size={24}></i>
+                    </button>
+
+                    <nav className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 sticky top-0 z-40 shadow-sm flex justify-between items-center transition-colors">
                         <div className="flex items-center gap-3">
-                            <img src="logo.png" className="h-8 w-auto" />
-                            <h1 className="text-lg font-black text-slate-800 tracking-tighter uppercase border-l pl-3 border-slate-200">Validación de Arriendo</h1>
+                            <img src="logo.png" className="h-7 w-auto dark:brightness-125" />
+                            <h1 className="text-sm font-black text-slate-800 dark:text-white tracking-tighter uppercase border-l pl-3 border-slate-200 dark:border-slate-700 hide-mobile">Validación</h1>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => setModals({...modals, upload: true})} className="bg-white border p-2 rounded-xl shadow-sm hover:bg-slate-50 transition-all flex items-center gap-2">
-                                <img src="logo 2.png" className="h-4 w-auto" />
-                                <span className="hide-mobile text-[10px] font-bold uppercase">Carga Inteligente</span>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setModals({...modals, upload: true})} className="bg-white dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl flex items-center gap-2 shadow-sm">
+                                <img src="logo 2.png" className="h-4 w-auto dark:brightness-125" />
+                                <span className="text-[9px] font-black uppercase dark:text-white hide-mobile">IA</span>
                             </button>
-                            <div className="text-right border-l pl-3 border-slate-200 hide-mobile">
-                                <p className="text-xl font-black text-deteco leading-none">${totalGeneral.toLocaleString()}</p>
-                            </div>
+                            <button onClick={saveToCloud} className="bg-slate-900 dark:bg-deteco text-white p-2 rounded-xl shadow-md active:scale-90 transition-all">
+                                <i data-lucide="share-2" size={18}></i>
+                            </button>
                         </div>
                     </nav>
 
                     <main className="max-w-7xl mx-auto p-4 md:p-6 w-full flex-1">
-                        {/* BOTÓN PRINCIPAL SIMPLIFICADO */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            <div className="bg-white p-4 rounded-premium shadow-sm border-l-4 border-deteco flex justify-between items-center">
-                                <div><p className="text-[10px] font-bold text-slate-400 uppercase">Monto Neto</p><h2 className="text-2xl font-black text-slate-800 tracking-tighter">${totalGeneral.toLocaleString()}</h2></div>
-                                <div className="text-right"><p className="text-[10px] font-bold text-slate-400 uppercase">Items</p><h2 className="text-2xl font-black text-slate-800">{filteredData.length}</h2></div>
+                            <div className="bg-white dark:bg-slate-900 p-4 rounded-premium shadow-sm border-l-4 border-deteco flex justify-between items-center transition-colors">
+                                <div><p className="text-[9px] font-bold text-slate-400 uppercase">Total Neto</p><h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${totalGeneral.toLocaleString()}</h2></div>
+                                <div className="text-right"><p className="text-[9px] font-bold text-slate-400 uppercase">Items</p><h2 className="text-2xl font-black text-slate-800 dark:text-white">{filteredData.length}</h2></div>
                             </div>
-                            <button onClick={() => setModals({...modals, validate: true})} className="bg-deteco text-white p-4 rounded-premium shadow-lg flex items-center justify-between group active:scale-95 transition-all">
-                                <span className="font-black text-sm uppercase tracking-widest">Validar Terreno</span>
-                                <i data-lucide="check-circle-2" size={28}></i>
+                            <button onClick={() => setModals({...modals, validate: true})} className="bg-deteco text-white p-4 rounded-premium shadow-lg flex items-center justify-center gap-4 active:scale-95 transition-all">
+                                <i data-lucide="check-circle-2" size={24}></i>
+                                <span className="font-black text-xs uppercase tracking-widest">Validar Terreno</span>
                             </button>
                         </div>
 
                         {/* FILTROS */}
-                        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scroll">
-                            <div className="relative flex-1 min-w-[200px]">
+                        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
+                            <div className="relative flex-1 min-w-[150px]">
                                 <i data-lucide="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14}></i>
-                                <input type="text" className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs" placeholder="Buscar..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
+                                <input type="text" className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs outline-none" placeholder="Buscar..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
                             </div>
-                            <select className="bg-white border rounded-xl px-4 font-black text-[10px] uppercase" value={filterObra} onChange={(e)=>setFilterObra(e.target.value)}>
+                            <select className="bg-white dark:bg-slate-900 dark:text-white border dark:border-slate-800 rounded-xl px-4 font-black text-[9px] uppercase min-w-[90px]" value={filterObra} onChange={(e)=>setFilterObra(e.target.value)}>
                                 <option value="Todas">Obras</option>
                                 {obrasList.map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
-                            <button onClick={()=>setModals({...modals, add:true})} className="bg-slate-900 text-white p-2.5 rounded-xl"><i data-lucide="plus" size={18}></i></button>
+                            <button onClick={()=>setModals({...modals, add:true})} className="bg-slate-900 dark:bg-slate-800 text-white p-2.5 rounded-xl"><i data-lucide="plus" size={18}></i></button>
+                            <button onClick={()=>setModals({...modals, obras:true})} className="bg-white dark:bg-slate-900 border dark:border-slate-800 dark:text-white p-2.5 rounded-xl"><i data-lucide="settings" size={18}></i></button>
                         </div>
 
-                        {/* TABLA COMPACTA */}
-                        <div className="bg-white rounded-xl shadow-sm border overflow-hidden mb-6">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border dark:border-slate-800 overflow-hidden transition-colors">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
-                                    <thead className="bg-slate-50 border-b text-slate-400">
-                                        <tr><th className="uppercase tracking-widest text-[9px]">Obra</th><th className="uppercase tracking-widest text-[9px]">Descripción</th><th className="uppercase tracking-widest text-[9px] text-right">Neto</th><th className="text-center"></th></tr>
+                                    <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700 text-slate-400">
+                                        <tr><th className="uppercase text-[8px]">Obra</th><th className="uppercase text-[8px]">Descripción</th><th className="uppercase text-[8px] text-right">Neto</th><th></th></tr>
                                     </thead>
-                                    <tbody className="divide-y">
-                                        {filteredData.map(row => (
-                                            <tr key={row.id} className="active:bg-slate-50 transition-colors">
-                                                <td className="font-black text-slate-700">{row.obra}</td>
-                                                <td className="text-slate-500 font-medium italic">{row.item}</td>
-                                                <td className="text-right font-black text-slate-900">${row.neto.toLocaleString()}</td>
+                                    <tbody className="divide-y dark:divide-slate-800">
+                                        {filteredData.length === 0 ? (
+                                            <tr><td colSpan="4" className="text-center py-8 text-slate-300 italic">No hay datos</td></tr>
+                                        ) : filteredData.map(row => (
+                                            <tr key={row.id} className="active:bg-slate-50 dark:active:bg-slate-800">
+                                                <td className="font-black text-slate-700 dark:text-slate-300">{row.obra}</td>
+                                                <td className="text-slate-500 dark:text-slate-400 italic truncate max-w-[150px]">{row.item}</td>
+                                                <td className="text-right font-black text-slate-900 dark:text-white">${row.neto.toLocaleString()}</td>
                                                 <td className="text-center">
                                                     <button onClick={()=>{setForm({...row, nuevaObra:''}); setModals({...modals, edit:true})}} className="p-2 text-blue-500"><i data-lucide="edit-2" size={12}></i></button>
                                                 </td>
@@ -270,82 +345,54 @@
                         </div>
                     </main>
 
-                    {/* MODAL VALIDACIÓN CON FIRMA */}
+                    {/* MODALES ADAPTADOS AL TEMA */}
+                    {modals.obras && (
+                        <div className="fixed inset-0 bg-slate-900/90 glass-effect z-50 flex items-center justify-center p-4">
+                            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+                                <h3 className="font-black text-lg uppercase mb-4 text-deteco">Renombrar Obras</h3>
+                                <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll no-scrollbar">
+                                    {obrasList.map(name => (
+                                        <div key={name} className="flex flex-col gap-1 pb-2 border-b dark:border-slate-800">
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase">Actual: {name}</span>
+                                            <input type="text" className="p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-lg text-xs font-bold" defaultValue={name} onBlur={(e) => {
+                                                const newName = e.target.value.toUpperCase();
+                                                if(newName && newName !== name) setData(data.map(i => i.obra === name ? {...i, obra: newName} : i));
+                                            }} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={()=>setModals({...modals, obras:false})} className="w-full bg-slate-900 dark:bg-deteco text-white p-3 rounded-xl mt-6 font-black uppercase text-[10px]">Cerrar</button>
+                            </div>
+                        </div>
+                    )}
+
                     {modals.validate && (
                         <div className="fixed inset-0 bg-slate-900/95 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden modal-pop">
-                                <div className="p-6 bg-slate-900 text-white text-center">
-                                    <h3 className="font-black text-xl uppercase tracking-tighter">Validación de Terreno</h3>
-                                    <p className="text-deteco font-bold text-[10px] uppercase">Firma Digital Requerida</p>
+                            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                                <div className="p-6 bg-slate-900 dark:bg-deteco text-white text-center">
+                                    <h3 className="font-black text-xl uppercase italic">Firma Profesional</h3>
+                                    <p className="text-deteco dark:text-slate-900 font-bold text-[10px] uppercase tracking-widest">Deteco IC SA</p>
                                 </div>
-                                <form onSubmit={finalizeValidation} className="p-6 space-y-4">
-                                    <input type="text" className="w-full p-3 bg-slate-50 border rounded-xl font-bold text-sm" placeholder="Nombre de quien autoriza" value={terrenoData.nombre} onChange={(e)=>setTerrenoData({...terrenoData, nombre:e.target.value})} required />
-                                    <input type="text" className="w-full p-3 bg-slate-50 border rounded-xl font-bold text-sm" value={terrenoData.periodo} onChange={(e)=>setTerrenoData({...terrenoData, periodo:e.target.value})} required />
-                                    
+                                <form onSubmit={finalizeValidation} className="p-6 space-y-3">
+                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="Nombre Profesional" value={terrenoData.nombre} onChange={(e)=>setTerrenoData({...terrenoData, nombre:e.target.value})} required />
+                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="RUT (ej: 12.345.678-9)" value={terrenoData.rut} onChange={(e)=>setTerrenoData({...terrenoData, rut:e.target.value})} required />
+                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" value={terrenoData.periodo} onChange={(e)=>setTerrenoData({...terrenoData, periodo:e.target.value})} required />
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Firma en el recuadro:</label>
-                                        <div className="signature-wrapper">
-                                            <canvas ref={canvasRef}></canvas>
-                                        </div>
-                                        <button type="button" onClick={()=>signaturePadRef.current.clear()} className="text-[9px] font-bold text-slate-400 uppercase">Borrar Firma</button>
+                                        <label className="text-[10px] font-black uppercase text-slate-400 ml-1 italic">Dibuja tu firma debajo:</label>
+                                        <div className="signature-wrapper"><canvas ref={canvasRef}></canvas></div>
+                                        <button type="button" onClick={()=>signaturePadRef.current.clear()} className="text-[9px] font-bold text-red-400 uppercase">Limpiar</button>
                                     </div>
-
-                                    <button type="submit" className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">Firmar y Descargar</button>
+                                    <button type="submit" className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs shadow-lg active:scale-90 transition-all">Firmar y Validar</button>
                                     <button type="button" onClick={()=>setModals({...modals, validate:false})} className="w-full text-slate-400 font-bold text-[10px] uppercase">Cancelar</button>
                                 </form>
                             </div>
                         </div>
                     )}
 
-                    {/* MODAL UPLOAD */}
-                    {modals.upload && (
-                        <div className="fixed inset-0 bg-slate-900/90 glass-effect z-50 flex items-center justify-center p-4">
-                            <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 modal-pop">
-                                <div className="text-center mb-6">
-                                    <img src="logo 2.png" className="h-12 mx-auto mb-2" />
-                                    <h3 className="font-black text-lg uppercase tracking-tighter">Carga Inteligente</h3>
-                                </div>
-                                <input type="text" className="w-full p-3 bg-slate-50 border rounded-xl font-bold mb-4" placeholder="Nombre Proveedor (SKC, Maq...)" value={providerName} onChange={(e)=>setProviderName(e.target.value)} />
-                                <button disabled={!providerName} onClick={()=>fileInputRef.current.click()} className="w-full bg-slate-900 text-white p-4 rounded-xl font-black uppercase text-xs disabled:opacity-30">Subir Excel o PDF</button>
-                                <input type="file" ref={fileInputRef} onChange={handleFile} className="hidden" accept=".xlsx,.xls,.pdf" />
-                                <button onClick={()=>setModals({...modals, upload:false})} className="w-full mt-4 text-slate-400 font-bold text-[10px] uppercase">Cerrar</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* MODAL ADD/EDIT */}
-                    {(modals.add || modals.edit) && (
-                        <div className="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
-                                <h3 className="font-black text-lg uppercase tracking-tighter mb-4">{form.id ? 'Editar' : 'Nuevo'} Item</h3>
-                                <div className="space-y-3">
-                                    <select className="w-full p-3 bg-slate-100 rounded-xl font-bold text-xs" value={form.obra} onChange={(e)=>setForm({...form, obra:e.target.value})} required>
-                                        <option value="">Seleccionar Obra</option>
-                                        {obrasList.map(o => <option key={o} value={o}>{o}</option>)}
-                                        <option value="NUEVA">+ Obra Nueva</option>
-                                    </select>
-                                    {form.obra === 'NUEVA' && <input type="text" className="w-full p-3 bg-orange-50 border rounded-xl font-bold text-xs" placeholder="Nombre Obra" onChange={(e)=>setForm({...form, nuevaObra:e.target.value})} />}
-                                    <input type="text" className="w-full p-3 bg-slate-100 rounded-xl font-bold text-xs" placeholder="Descripción" value={form.item} onChange={(e)=>setForm({...form, item:e.target.value})} />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input type="number" className="p-3 bg-slate-100 rounded-xl font-bold text-xs" placeholder="V. Día" value={form.valor} onChange={(e)=>setForm({...form, valor:Number(e.target.value)})} />
-                                        <input type="number" className="p-3 bg-slate-100 rounded-xl font-bold text-xs" placeholder="Días" value={form.dias} onChange={(e)=>setForm({...form, dias:Number(e.target.value)})} />
-                                    </div>
-                                </div>
-                                <button onClick={()=>{
-                                    const obraFinal = form.obra === 'NUEVA' ? form.nuevaObra.toUpperCase() : form.obra;
-                                    const entry = { ...form, obra: obraFinal, neto: form.valor * form.dias };
-                                    if(form.id) setData(data.map(i=>i.id===form.id?entry:i));
-                                    else setData([...data, {...entry, id:Date.now()}]);
-                                    setModals({add:false, edit:false});
-                                }} className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs mt-4">Guardar</button>
-                                <button onClick={()=>setModals({add:false, edit:false})} className="w-full mt-2 text-slate-400 font-bold text-[10px] uppercase">Cancelar</button>
-                            </div>
-                        </div>
-                    )}
-
-                    <footer className="py-8 px-4 text-center border-t mt-auto">
-                        <img src="logo.png" className="h-6 mx-auto grayscale opacity-30 mb-2" />
-                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Creado por Iván Vivanco • 2026</p>
+                    <footer className="py-8 px-4 text-center border-t dark:border-slate-800 mt-auto transition-colors">
+                        <img src="logo.png" className="h-5 mx-auto grayscale opacity-30 dark:invert dark:opacity-50 mb-2" />
+                        <p className="text-[8px] font-black uppercase text-slate-300 dark:text-slate-600 tracking-[0.4em]">Deteco IC SA • Lampa</p>
+                        <p className="text-[9px] font-black uppercase text-deteco tracking-widest mt-1">Creado por Iván Vivanco • 2026</p>
                     </footer>
                 </div>
             );
