@@ -12,20 +12,12 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Procesamiento de Excel y PDF -->
+    <!-- Procesamiento de Archivos -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
-
-    <!-- Firebase -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        window.FB = { initializeApp, getFirestore, doc, setDoc, getDoc, collection, getAuth, signInAnonymously, onAuthStateChanged };
-    </script>
 
     <script>
         tailwind.config = {
@@ -42,16 +34,20 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
         body { font-family: 'Inter', sans-serif; touch-action: manipulation; transition: background-color 0.3s ease; }
+        
         @keyframes pulse-fade {
             0%, 100% { opacity: 1; filter: saturate(100%); transform: scale(1); }
             50% { opacity: 0.3; filter: saturate(20%) blur(1px); transform: scale(0.95); }
         }
         .animate-logo-ai { animation: pulse-fade 2.2s infinite ease-in-out; }
+
         @keyframes fade-out { 0% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-        .splash { animation: fade-out 2.5s forwards; }
+        .splash { animation: fade-out 2.2s forwards; }
+
         .signature-wrapper { border: 2px dashed #cbd5e1; background: #fff; width: 100%; height: 160px; border-radius: 1rem; overflow: hidden; position: relative; }
         .dark .signature-wrapper { border-color: #475569; background: #f8fafc; }
         canvas { width: 100%; height: 100%; cursor: crosshair; }
+
         td, th { padding: 0.4rem 0.5rem !important; font-size: 0.72rem; }
     </style>
 </head>
@@ -61,15 +57,10 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef } = React;
 
-        // ==========================================
-        // CONFIGURACIÓN: INGRESA TUS LLAVES AQUÍ
-        // ==========================================
-        const apiKey = "AIzaSyBE7rU55LgDSHZY2rY_W31GFDobCCcf-H0"; // <--- PEGA TU API KEY DE GEMINI AQUÍ
-        const firebaseConfig = null; // <--- PEGA TU CONFIG DE FIREBASE AQUÍ (Opcional para nube)
-        // ==========================================
-
+        // --- CONFIGURACIÓN DE LLAVES ---
+        // Iván: Debes poner tu API KEY de Gemini aquí para que la IA funcione en GitHub
+        const apiKey = "AIzaSyBE7rU55LgDSHZY2rY_W31GFDobCCcf-H0"; 
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
-        const appId = 'deteco-arriendos-ivan';
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
@@ -80,13 +71,11 @@
             const [filterObra, setFilterObra] = useState('Todas');
             const [searchTerm, setSearchTerm] = useState('');
             const [loading, setLoading] = useState(false);
-            const [db, setDb] = useState(null);
             
-            const [modals, setModals] = useState({ add: false, edit: false, validate: false, upload: false, obras: false, share: false });
+            const [modals, setModals] = useState({ add: false, edit: false, validate: false, upload: false, obras: false });
             const [form, setForm] = useState({ id: null, obra: '', nuevaObra: '', item: '', serie: '', valor: 0, dias: 1 });
             const [terrenoData, setTerrenoData] = useState({ nombre: '', rut: '', periodo: 'ENERO 2026' });
             const [providerName, setProviderName] = useState('');
-            const [shareUrl, setShareUrl] = useState('');
 
             const fileInputRef = useRef(null);
             const signaturePadRef = useRef(null);
@@ -96,28 +85,7 @@
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 setDarkMode(prefersDark);
                 if (prefersDark) document.documentElement.classList.add('dark');
-
-                const initApp = async () => {
-                    if (firebaseConfig && window.FB) {
-                        try {
-                            const app = window.FB.initializeApp(firebaseConfig);
-                            const auth = window.FB.getAuth(app);
-                            const firestore = window.FB.getFirestore(app);
-                            setDb(firestore);
-                            await window.FB.signInAnonymously(auth);
-                            
-                            const urlParams = new URLSearchParams(window.location.search);
-                            const docId = urlParams.get('id');
-                            if (docId) {
-                                const docRef = window.FB.doc(firestore, 'artifacts', appId, 'public', 'data', 'arriendos', docId);
-                                const docSnap = await window.FB.getDoc(docRef);
-                                if (docSnap.exists()) setData(docSnap.data().records || []);
-                            }
-                        } catch(e) { console.error("Firebase init error", e); }
-                    }
-                    setTimeout(() => setShowSplash(false), 2500);
-                };
-                initApp();
+                setTimeout(() => setShowSplash(false), 2200);
             }, []);
 
             const toggleTheme = () => {
@@ -134,14 +102,15 @@
                 }
             }, [modals.validate, loading, showSplash]);
 
+            // --- IA: ANÁLISIS ---
             const analyzeWithIA = async (text, provider) => {
                 if (!apiKey) {
-                    alert("⚠️ Error: Debes ingresar tu API Key de Gemini en el archivo index.html.");
+                    alert("⚠️ No has ingresado la API Key de Gemini en el código.");
                     setLoading(false);
                     return;
                 }
                 setLoading(true);
-                const prompt = `Analiza los datos de arriendo del proveedor "${provider}" para la empresa Deteco IC SA. Extrae registros: Obra, Item, Serie, Valor Día, Días. Devuelve JSON: { "records": [{ "obra": "...", "item": "...", "serie": "...", "valor": 0, "dias": 0 }] }`;
+                const prompt = `Analiza los datos del proveedor "${provider}" para Deteco IC SA. Extrae registros: Obra, Item, Serie, Valor Día, Días. Devuelve JSON: { "records": [{ "obra": "...", "item": "...", "serie": "...", "valor": 0, "dias": 0 }] }`;
                 try {
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
                         method: 'POST',
@@ -156,7 +125,7 @@
                     const aiResult = JSON.parse(res.candidates[0].content.parts[0].text);
                     const formatted = aiResult.records.map((r, i) => ({ ...r, id: Date.now() + i, neto: r.valor * r.dias }));
                     setData([...data, ...formatted].sort((a,b) => a.obra.localeCompare(b.obra)));
-                } catch (e) { alert("Error procesando IA. Revisa tu API Key."); }
+                } catch (e) { alert("Error de IA. Revisa tu API Key."); }
                 finally { setLoading(false); }
             };
 
@@ -187,20 +156,6 @@
                 }
             };
 
-            const saveToCloud = async () => {
-                if (!db) {
-                    alert("☁️ Función Deshabilitada: Debes configurar Firebase en el código para guardar links.");
-                    return;
-                }
-                setLoading(true);
-                const docId = crypto.randomUUID();
-                const docRef = window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'arriendos', docId);
-                await window.FB.setDoc(docRef, { records: data, timestamp: Date.now() });
-                setShareUrl(`${window.location.origin}${window.location.pathname}?id=${docId}`);
-                setModals({ ...modals, share: true });
-                setLoading(false);
-            };
-
             const obrasList = useMemo(() => [...new Set(data.map(d => d.obra))].sort(), [data]);
             const filteredData = useMemo(() => data.filter(i => (filterObra === 'Todas' || i.obra === filterObra) && i.item.toLowerCase().includes(searchTerm.toLowerCase())), [data, filterObra, searchTerm]);
             const totalGeneral = filteredData.reduce((s, i) => s + i.neto, 0);
@@ -208,17 +163,18 @@
 
             const finalizeValidation = async (e) => {
                 e.preventDefault();
+                if (signaturePadRef.current.isEmpty()) { alert("Firma requerida."); return; }
+                
                 const { jsPDF } = window.jspdf;
                 const docPdf = new jsPDF();
                 const now = new Date().toLocaleString('es-CL');
                 const sigImg = signaturePadRef.current.toDataURL();
                 
-                const logo = new Image(); 
-                logo.src = 'logo.png';
-                
+                const logo = new Image(); logo.src = 'logo.png';
                 docPdf.addImage(logo, 'PNG', 14, 10, 25, 10);
                 docPdf.setFont("helvetica", "bold"); docPdf.setFontSize(16);
                 docPdf.text("Estado de Pago de Arriendo de Herramientas", 105, 30, { align: "center" });
+                
                 docPdf.setFontSize(8); docPdf.setTextColor(100);
                 docPdf.text(`VALIDACIÓN PROFESIONAL DE TERRENO`, 105, 36, { align: "center" });
                 docPdf.setTextColor(30); docPdf.setFontSize(9);
@@ -228,8 +184,8 @@
 
                 docPdf.autoTable({
                     startY: 68,
-                    head: [['OBRA', 'DESCRIPCIÓN', 'SERIE', 'V. DÍA', 'DÍAS', 'NETO']],
-                    body: filteredData.map(d => [d.obra, d.item, d.serie, `$${d.valor.toLocaleString()}`, d.dias, `$${d.neto.toLocaleString()}`]),
+                    head: [['OBRA', 'DESCRIPCIÓN', 'V. DÍA', 'DÍAS', 'NETO']],
+                    body: filteredData.map(d => [d.obra, d.item, `$${d.valor.toLocaleString()}`, d.dias, `$${d.neto.toLocaleString()}`]),
                     theme: 'striped', headStyles: { fillColor: [243, 112, 33], fontSize: 7.5 },
                     styles: { fontSize: 7, cellPadding: 1 }
                 });
@@ -244,10 +200,10 @@
                 docPdf.text("valida y autoriza los arriendos mencionados en este documento", 105, finalY + 45, { align: "center" });
 
                 const pdfBlob = docPdf.output('blob');
-                const file = new File([pdfBlob], `Validacion_Deteco.pdf`, { type: "application/pdf" });
+                const file = new File([pdfBlob], `EP_Arriendo_Deteco.pdf`, { type: "application/pdf" });
                 
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try { await navigator.share({ files: [file], title: 'Validación Deteco', text: 'EP Arriendo adjunto.' }); } 
+                    try { await navigator.share({ files: [file], title: 'Validación Deteco', text: 'Comprobante arriendo.' }); } 
                     catch (err) { docPdf.save(file.name); }
                 } else { docPdf.save(file.name); }
                 setModals({ ...modals, validate: false });
@@ -268,7 +224,7 @@
                     {loading && (
                         <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-white p-6">
                             <img src="logo 2.png" className="h-20 w-auto mb-6 animate-logo-ai" />
-                            <p className="font-black text-deteco animate-pulse tracking-[0.3em] mt-4 uppercase">Analizando con IA...</p>
+                            <p className="font-black text-deteco animate-pulse tracking-[0.3em] mt-4 uppercase text-center">IA ANALIZANDO DOCUMENTO...</p>
                         </div>
                     )}
 
@@ -284,10 +240,7 @@
                         <div className="flex items-center gap-2">
                             <button onClick={() => setModals({...modals, upload: true})} className="bg-white dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl flex items-center gap-2 shadow-sm">
                                 <img src="logo 2.png" className="h-4 w-auto dark:brightness-150" />
-                                <span className="text-[9px] font-black uppercase dark:text-white hide-mobile">IA</span>
-                            </button>
-                            <button onClick={saveToCloud} className="bg-slate-900 dark:bg-deteco text-white p-2 rounded-xl shadow-md active:scale-90 transition-all">
-                                <i data-lucide="share-2" size={18}></i>
+                                <span className="text-[9px] font-black uppercase dark:text-white hide-mobile">Cargar IA</span>
                             </button>
                         </div>
                     </nav>
@@ -295,7 +248,7 @@
                     <main className="max-w-7xl mx-auto p-4 md:p-6 w-full flex-1">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             <div className="bg-white dark:bg-slate-900 p-4 rounded-premium shadow-sm border-l-4 border-deteco flex justify-between items-center transition-colors">
-                                <div><p className="text-[9px] font-bold text-slate-400 uppercase">Total Neto</p><h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${totalGeneral.toLocaleString()}</h2></div>
+                                <div><p className="text-[9px] font-bold text-slate-400 uppercase">Monto Total</p><h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${totalGeneral.toLocaleString()}</h2></div>
                                 <div className="text-right"><p className="text-[9px] font-bold text-slate-400 uppercase">Items</p><h2 className="text-2xl font-black text-slate-800 dark:text-white">{filteredData.length}</h2></div>
                             </div>
                             <button onClick={() => setModals({...modals, validate: true})} className="bg-deteco text-white p-4 rounded-premium shadow-lg flex items-center justify-center gap-4 active:scale-95 transition-all">
@@ -304,6 +257,7 @@
                             </button>
                         </div>
 
+                        {/* FILTROS */}
                         <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
                             <div className="relative flex-1 min-w-[150px]">
                                 <i data-lucide="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14}></i>
@@ -340,6 +294,21 @@
                                 </table>
                             </div>
                         </div>
+
+                        {/* RESUMEN OBRA */}
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-premium shadow-sm border border-slate-100 dark:border-slate-800 transition-colors mb-12">
+                            <h3 className="font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase text-xs">
+                                <i data-lucide="bar-chart-3" size={16} className="text-deteco"></i> Gasto por Obra
+                            </h3>
+                            <div className="space-y-3">
+                                {Object.entries(totalsByObra).map(([name, val]) => (
+                                    <div key={name} className="flex items-center justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase truncate max-w-[180px]">{name}</span>
+                                        <span className="font-black text-slate-800 dark:text-slate-300 text-sm">${val.toLocaleString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </main>
 
                     {/* MODALES ADAPTADOS */}
@@ -352,15 +321,15 @@
                                 </div>
                                 <form onSubmit={finalizeValidation} className="p-6 space-y-4">
                                     <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="Nombre Profesional" value={terrenoData.nombre} onChange={(e)=>setTerrenoData({...terrenoData, nombre:e.target.value})} required />
-                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="RUT (ej: 12.345.678-9)" value={terrenoData.rut} onChange={(e)=>setTerrenoData({...terrenoData, rut:e.target.value})} required />
+                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="RUT" value={terrenoData.rut} onChange={(e)=>setTerrenoData({...terrenoData, rut:e.target.value})} required />
                                     <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" value={terrenoData.periodo} onChange={(e)=>setTerrenoData({...terrenoData, periodo:e.target.value})} required />
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black uppercase text-slate-400 ml-1 italic">Dibuja tu firma debajo:</label>
                                         <div className="signature-wrapper"><canvas ref={canvasRef}></canvas></div>
                                         <button type="button" onClick={()=>signaturePadRef.current.clear()} className="text-[9px] font-bold text-red-400 uppercase">Limpiar</button>
                                     </div>
-                                    <button type="submit" className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs shadow-lg active:scale-90 transition-all">Firmar y Descargar</button>
-                                    <button type="button" onClick={()=>setModals({...modals, validate:false})} className="w-full text-slate-400 font-bold text-[10px] uppercase text-center mt-2">Cerrar</button>
+                                    <button type="submit" className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs shadow-lg active:scale-90">Validar y Descargar</button>
+                                    <button type="button" onClick={()=>setModals({...modals, validate:false})} className="w-full text-slate-400 font-bold text-[10px] uppercase mt-2">Cerrar</button>
                                 </form>
                             </div>
                         </div>
@@ -372,9 +341,29 @@
                                 <img src="logo 2.png" className="h-12 mx-auto mb-4 dark:invert" />
                                 <h3 className="font-black text-lg uppercase mb-2 dark:text-white">Carga Inteligente</h3>
                                 <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold mb-4" placeholder="Nombre Proveedor..." value={providerName} onChange={(e)=>setProviderName(e.target.value)} />
-                                <button disabled={!providerName} onClick={()=>fileInputRef.current.click()} className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs disabled:opacity-30">Subir Documento</button>
+                                <button disabled={!providerName} onClick={()=>fileInputRef.current.click()} className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs disabled:opacity-30">Subir PDF / Excel</button>
                                 <input type="file" ref={fileInputRef} onChange={handleFile} className="hidden" accept=".xlsx,.xls,.pdf" />
                                 <button onClick={()=>setModals({...modals, upload:false})} className="w-full mt-4 text-slate-400 font-bold text-[10px] uppercase">Cerrar</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {modals.obras && (
+                        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4">
+                            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+                                <h3 className="font-black text-lg uppercase mb-4 text-deteco">Obras Activas</h3>
+                                <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll no-scrollbar">
+                                    {obrasList.map(name => (
+                                        <div key={name} className="flex flex-col gap-1 pb-2 border-b dark:border-slate-800">
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Actual: {name}</span>
+                                            <input type="text" className="p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-lg text-xs font-bold" defaultValue={name} onBlur={(e) => {
+                                                const newName = e.target.value.toUpperCase();
+                                                if(newName && newName !== name) setData(data.map(i => i.obra === name ? {...i, obra: newName} : i));
+                                            }} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={()=>setModals({...modals, obras:false})} className="w-full bg-slate-900 dark:bg-deteco text-white p-3 rounded-xl mt-6 font-black uppercase text-[10px]">Cerrar</button>
                             </div>
                         </div>
                     )}
@@ -392,5 +381,4 @@
         root.render(<App />);
     </script>
 </body>
-
 </html>
