@@ -1,1 +1,59 @@
-🏗️ Deteco DTX - Sistema Inteligente de AdquisicionesEsta WebApp permite automatizar la creación de Cuadros Comparativos de Materiales a partir de cotizaciones en PDF, utilizando Inteligencia Artificial (Google Gemini) para extraer, normalizar y comparar precios automáticamente.🚀 Características PrincipalesLectura Automática de PDFs: Arrastra tus cotizaciones (Yolito, MCT, Fermet, etc.) y el sistema extraerá los ítems sin que escribas nada.Inteligencia Artificial: Normaliza nombres distintos (ej: "Saco Cemento" vs "Cemento 25kg") para compararlos en una misma fila.Histórico de Precios: Guarda automáticamente cada cotización y te avisa si un precio subió (▲) o bajó (▼) respecto a tu última compra.Exportación Profesional: Genera PDFs limpios para gerencia y descarga Bases de Datos en Excel (.xls) con formato visual.Privacidad Total: Tu API Key y tus datos se guardan en tu navegador, no en servidores externos.🛠️ Cómo instalar en GitHub Pages (Guía Rápida)Para tener esta app disponible en una dirección web (ej: ivan-deteco.github.io/adquisiciones):Crea un Repositorio:Ve a GitHub.com y crea un "New Repository".Ponle nombre: adquisiciones-deteco (o el que gustes).Marca la opción "Public" (o Private si tienes cuenta Pro).Sube el Archivo:Haz clic en "Add file" -> "Create new file".Nombra el archivo index.html.Pega todo el código que te entregué en el bloque anterior.Guarda los cambios ("Commit changes").Activa la Web:Ve a la pestaña Settings (Configuración) del repositorio.En el menú izquierdo, busca Pages.En "Branch", selecciona main y guarda.Espera unos segundos y GitHub te dará el link oficial de tu WebApp.🔑 Configuración InicialAl abrir la web por primera vez:Haz clic en el botón Config (⚙️).Ingresa tu API Key de Google Gemini.¡Listo! Ya puedes arrastrar tus PDFs.Desarrollado para el Departamento de Adquisiciones de Deteco IC SA.
+Deteco DTX - Sistema Inteligente de Adquisiciones
+
+Esta WebApp permite automatizar la creación de Cuadros Comparativos de Materiales a partir de cotizaciones en PDF, utilizando Inteligencia Artificial (Google Gemini) para extraer, normalizar y comparar precios automáticamente.
+
+🚀 Características Principales
+
+Lectura Automática de PDFs: Arrastra tus cotizaciones (Yolito, MCT, Fermet, etc.) y el sistema extraerá los ítems sin que escribas nada.
+
+Inteligencia Artificial: Normaliza nombres distintos (ej: "Saco Cemento" vs "Cemento 25kg") para compararlos en una misma fila.
+
+Histórico de Precios: Guarda automáticamente cada cotización y te avisa si un precio subió (▲) o bajó (▼) respecto a tu última compra.
+
+Exportación Profesional: Genera PDFs limpios para gerencia y descarga Bases de Datos en Excel (.xls) con formato visual.
+
+Privacidad Total: Tu API Key y tus datos se guardan en tu navegador, no en servidores externos.
+
+🛠️ Cómo instalar en GitHub Pages (Guía Rápida)
+
+Para tener esta app disponible en una dirección web (ej: ivan-deteco.github.io/adquisiciones):
+
+Crea un Repositorio:
+
+Ve a GitHub.com y crea un "New Repository".
+
+Ponle nombre: adquisiciones-deteco (o el que gustes).
+
+Marca la opción "Public" (o Private si tienes cuenta Pro).
+
+Sube el Archivo:
+
+Haz clic en "Add file" -> "Create new file".
+
+Nombra el archivo index.html.
+
+Pega todo el código que te entregué en el bloque anterior.
+
+Guarda los cambios ("Commit changes").
+
+Activa la Web:
+
+Ve a la pestaña Settings (Configuración) del repositorio.
+
+En el menú izquierdo, busca Pages.
+
+En "Branch", selecciona main y guarda.
+
+Espera unos segundos y GitHub te dará el link oficial de tu WebApp.
+
+🔑 Configuración Inicial
+
+Al abrir la web por primera vez:
+
+Haz clic en el botón Config (⚙️).
+
+Ingresa tu API Key de Google Gemini.
+
+¡Listo! Ya puedes arrastrar tus PDFs.
+
+Desarrollado para el Departamento de Adquisiciones de Deteco IC SA.
