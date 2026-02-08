@@ -2,444 +2,678 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Validación de Arriendo - Deteco IC SA</title>
-    
-    <!-- Librerías Externas -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuadro Comparativo Deteco DTX</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Procesamiento de Archivos -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
-
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: { deteco: '#f37021' },
-                    borderRadius: { 'premium': '1.25rem' }
-                }
-            }
-        }
-    </script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-        body { font-family: 'Inter', sans-serif; touch-action: manipulation; transition: background-color 0.3s ease; }
-        
-        @keyframes pulse-fade {
-            0%, 100% { opacity: 1; filter: saturate(100%); transform: scale(1); }
-            50% { opacity: 0.3; filter: saturate(20%) blur(1px); transform: scale(0.95); }
+        body { font-family: 'Manrope', sans-serif; }
+        :root {
+            --deteco-orange: #ea580c;      
+            --deteco-gray-dark: #334155;   
         }
-        .animate-logo-ai { animation: pulse-fade 2s infinite ease-in-out; }
+        .bg-deteco-brand { background-color: var(--deteco-orange); }
+        .text-deteco-brand { color: var(--deteco-orange); }
+        .border-deteco-brand { border-color: var(--deteco-orange); }
 
-        @keyframes fade-out { 0% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-        .splash { animation: fade-out 2.5s forwards; }
+        .winner-cell { 
+            background-color: #fff7ed !important; 
+            color: #ea580c !important; 
+            font-weight: 800;
+            border-bottom: 2px solid #ea580c; 
+        }
+        
+        /* Indicadores de Variación de Precio */
+        .price-up { color: #dc2626; font-size: 0.7em; font-weight: bold; margin-left: 4px; } /* Rojo */
+        .price-down { color: #16a34a; font-size: 0.7em; font-weight: bold; margin-left: 4px; } /* Verde */
+        .price-equal { color: #94a3b8; font-size: 0.7em; margin-left: 4px; } /* Gris */
+        
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
+        .web-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        .drop-zone { border: 2px dashed #cbd5e1; transition: all 0.3s ease; }
+        .drop-zone.dragover { border-color: var(--deteco-orange); background-color: #fff7ed; transform: scale(1.01); }
 
-        .signature-wrapper { border: 2px dashed #cbd5e1; background: #fff; width: 100%; height: 160px; border-radius: 1rem; overflow: hidden; position: relative; }
-        .dark .signature-wrapper { border-color: #475569; background: #f8fafc; }
-        canvas { width: 100%; height: 100%; cursor: crosshair; }
+        /* Consola Corporativa */
+        .console-log {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1f2937;
+            color: #d1d5db;
+            border-left: 4px solid var(--deteco-orange);
+            font-size: 0.75rem;
+        }
+        .log-success { color: #fb923c; font-weight: bold; } 
+        .log-info { color: #9ca3af; } 
+        .log-error { color: #f87171; } 
 
-        td, th { padding: 0.4rem 0.5rem !important; font-size: 0.72rem; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
+        /* PDF Mode */
+        .pdf-mode { background-color: white !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+        .pdf-mode .no-pdf { display: none !important; } 
+        .pdf-mode table { width: 100% !important; }
+        .pdf-mode th { background-color: #334155 !important; color: white !important; font-size: 10px !important; }
+        .pdf-mode td { font-size: 10px !important; padding: 4px !important; }
+        .pdf-mode tr { break-inside: avoid; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950">
-    <div id="root"></div>
+<body class="bg-gray-50 text-slate-700 min-h-screen p-4 md:p-8 flex justify-center">
 
-    <script type="text/babel">
-        const { useState, useMemo, useEffect, useRef } = React;
-
-        // ================================================================
-        // CONFIGURACIÓN DE IVÁN VIVANCO
-        // ================================================================
-        const apiKey = "AIzaSyBE7rU55LgDSHZY2rY_W31GFDobCCcf-H0"; // <--- PEGA AQUÍ TU API KEY NUEVAMENTE
-        const GEMINI_MODEL = "gemini-1.5-flash"; 
-        // ================================================================
-
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-
-        const App = () => {
-            const [showSplash, setShowSplash] = useState(true);
-            const [darkMode, setDarkMode] = useState(false);
-            const [data, setData] = useState([]);
-            const [filterObra, setFilterObra] = useState('Todas');
-            const [searchTerm, setSearchTerm] = useState('');
-            const [loading, setLoading] = useState(false);
-            
-            const [modals, setModals] = useState({ add: false, edit: false, validate: false, upload: false, obras: false });
-            const [form, setForm] = useState({ id: null, obra: '', nuevaObra: '', item: '', serie: '', valor: 0, dias: 1 });
-            const [terrenoData, setTerrenoData] = useState({ nombre: '', rut: '', periodo: 'ENERO 2026' });
-            const [providerName, setProviderName] = useState('');
-
-            const fileInputRef = useRef(null);
-            const signaturePadRef = useRef(null);
-            const canvasRef = useRef(null);
-
-            useEffect(() => {
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                setDarkMode(prefersDark);
-                if (prefersDark) document.documentElement.classList.add('dark');
-                setTimeout(() => setShowSplash(false), 2200);
-            }, []);
-
-            const toggleTheme = () => {
-                const newMode = !darkMode;
-                setDarkMode(newMode);
-                if (newMode) document.documentElement.classList.add('dark');
-                else document.documentElement.classList.remove('dark');
-            };
-
-            useEffect(() => {
-                if (window.lucide) window.lucide.createIcons();
-                if (modals.validate && canvasRef.current) {
-                    signaturePadRef.current = new SignaturePad(canvasRef.current);
-                }
-            }, [modals.validate, loading, showSplash]);
-
-            const analyzeWithIA = async (text, provider) => {
-                if (!apiKey || apiKey === "") {
-                    alert("⚠️ Por favor, ingresa tu API Key en la línea 66 del código.");
-                    setLoading(false);
-                    return;
-                }
-                setLoading(true);
-                
-                // Endpoint corregido para Gemini 1.5 Flash
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-                const prompt = `Actúa como experto en logística para Deteco IC SA. Analiza estos datos del proveedor "${provider}". Extrae registros de arriendo detallados.
-                Ignora totales y saldos. Devuelve un JSON con este formato exacto: 
-                { "records": [{ "obra": "NOMBRE OBRA", "item": "HERRAMIENTA", "serie": "SERIE", "valor": 0, "dias": 0 }] }`;
-
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: `Analiza este texto del documento:\n${text}` }] }],
-                            systemInstruction: { parts: [{ text: prompt }] },
-                            generationConfig: { responseMimeType: "application/json" }
-                        })
-                    });
-
-                    const res = await response.json();
-                    
-                    if (res.error) {
-                        throw new Error(res.error.message || "Error desconocido en la API.");
-                    }
-
-                    if (!res.candidates || res.candidates.length === 0) {
-                        throw new Error("La IA no pudo procesar el formato del documento.");
-                    }
-
-                    const aiResult = JSON.parse(res.candidates[0].content.parts[0].text);
-                    const formatted = aiResult.records.map((r, i) => ({ 
-                        ...r, 
-                        id: Date.now() + i, 
-                        neto: (Number(r.valor) || 0) * (Number(r.dias) || 0) 
-                    }));
-
-                    setData([...data, ...formatted].sort((a,b) => a.obra.localeCompare(b.obra)));
-                } catch (e) { 
-                    alert("Error crítico: " + e.message + "\n\nVerifica que tu API Key sea correcta y tengas créditos disponibles en Google AI Studio."); 
-                } finally { 
-                    setLoading(false); 
-                }
-            };
-
-            const handleFile = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                setModals({...modals, upload: false});
-                setLoading(true);
-                
-                if (file.type === "application/pdf") {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                    let text = "";
-                    for (let i = 1; i <= pdf.numPages; i++) {
-                        const page = await pdf.getPage(i);
-                        const content = await page.getTextContent();
-                        text += content.items.map(it => it.str).join(" ") + "\n";
-                    }
-                    analyzeWithIA(text, providerName);
-                } else {
-                    const reader = new FileReader();
-                    reader.onload = (evt) => {
-                        const wb = XLSX.read(evt.target.result, { type: 'binary' });
-                        const text = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
-                        analyzeWithIA(text, providerName);
-                    };
-                    reader.readAsBinaryString(file);
-                }
-            };
-
-            const obrasList = useMemo(() => [...new Set(data.map(d => d.obra))].sort(), [data]);
-            const filteredData = useMemo(() => data.filter(i => (filterObra === 'Todas' || i.obra === filterObra) && i.item.toLowerCase().includes(searchTerm.toLowerCase())), [data, filterObra, searchTerm]);
-            const totalGeneral = filteredData.reduce((s, i) => s + (Number(i.neto) || 0), 0);
-            const totalsByObra = useMemo(() => data.reduce((acc, curr) => { acc[curr.obra] = (acc[curr.obra] || 0) + curr.neto; return acc; }, {}), [data]);
-
-            const finalizeValidation = async (e) => {
-                e.preventDefault();
-                if (signaturePadRef.current.isEmpty()) { alert("Firma obligatoria."); return; }
-                
-                const { jsPDF } = window.jspdf;
-                const docPdf = new jsPDF();
-                const now = new Date().toLocaleString('es-CL');
-                const sigImg = signaturePadRef.current.toDataURL();
-                
-                const logo = new Image(); 
-                logo.src = 'logo.png';
-                
-                docPdf.addImage(logo, 'PNG', 14, 10, 25, 10);
-                docPdf.setFont("helvetica", "bold"); docPdf.setFontSize(16);
-                docPdf.text("Estado de Pago de Arriendo de Herramientas", 105, 30, { align: "center" });
-                
-                docPdf.setFontSize(8); docPdf.setTextColor(100);
-                docPdf.text(`VALIDACIÓN PROFESIONAL DE TERRENO - DETECO IC SA`, 105, 36, { align: "center" });
-                
-                docPdf.setTextColor(30); docPdf.setFontSize(9);
-                docPdf.text(`Autorizado por: ${terrenoData.nombre.toUpperCase()}`, 14, 50);
-                docPdf.text(`RUT: ${terrenoData.rut}`, 14, 55);
-                docPdf.text(`Periodo: ${terrenoData.periodo}`, 120, 50);
-                docPdf.text(`Fecha Validación: ${now}`, 14, 60);
-
-                docPdf.autoTable({
-                    startY: 68,
-                    head: [['OBRA', 'DESCRIPCIÓN', 'V. DÍA', 'DÍAS', 'NETO']],
-                    body: filteredData.map(d => [d.obra, d.item, `$${d.valor.toLocaleString()}`, d.dias, `$${d.neto.toLocaleString()}`]),
-                    theme: 'striped', headStyles: { fillColor: [243, 112, 33], fontSize: 7.5 },
-                    styles: { fontSize: 7, cellPadding: 1 }
-                });
-                
-                const finalY = docPdf.lastAutoTable.finalY + 10;
-                docPdf.setFont("helvetica", "bold");
-                docPdf.text(`TOTAL NETO APROBADO: $${totalGeneral.toLocaleString()} CLP`, 196, finalY, { align: 'right' });
-                
-                docPdf.addImage(sigImg, 'PNG', 75, finalY + 15, 60, 20);
-                docPdf.line(75, finalY + 35, 135, finalY + 35);
-                docPdf.setFontSize(8); docPdf.text("FIRMA PROFESIONAL DE TERRENO", 105, finalY + 40, { align: "center" });
-                docPdf.setFont("helvetica", "italic"); docPdf.setFontSize(7); docPdf.setTextColor(100);
-                docPdf.text("valida y autoriza los arriendos mencionados en este documento", 105, finalY + 45, { align: "center" });
-
-                const pdfBlob = docPdf.output('blob');
-                const file = new File([pdfBlob], `EP_Arriendo_${terrenoData.nombre.split(' ')[0]}.pdf`, { type: "application/pdf" });
-                
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try { await navigator.share({ files: [file], title: 'Validación Deteco', text: 'Estado de Pago Arriendo.' }); } 
-                    catch (err) { docPdf.save(file.name); }
-                } else { docPdf.save(file.name); }
-                setModals({ ...modals, validate: false });
-            };
-
-            if (showSplash) {
-                return (
-                    <div className="fixed inset-0 z-[200] bg-slate-950 dark:bg-white flex flex-col items-center justify-center text-white dark:text-slate-900 splash">
-                        <img src="logo 2.png" className="h-24 w-auto mb-6 animate-logo-ai dark:invert" />
-                        <h2 className="text-3xl font-black tracking-tighter uppercase mb-2 italic">Arriendos Deteco</h2>
-                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.4em]">Creado por Iván Vivanco</p>
+    <div id="document-content" class="w-full max-w-[1280px] bg-white shadow-xl rounded-sm overflow-hidden relative border-t-8 border-deteco-brand web-shadow transition-all duration-500">
+        
+        <!-- Encabezado con Identidad Actualizada -->
+        <div class="flex justify-between items-center p-8 pb-4 border-b border-slate-200 bg-white">
+            <div class="flex flex-col">
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="h-10 w-10 bg-deteco-brand flex items-center justify-center text-white font-black rounded-sm text-xl tracking-tighter">D.</div>
+                    <div class="flex flex-col justify-center">
+                        <span class="text-2xl font-black tracking-tight text-slate-800 leading-none">DETECO <span class="text-deteco-brand font-light">DTX</span></span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Departamento de Adquisiciones</span>
                     </div>
-                );
+                </div>
+            </div>
+            
+            <!-- Botones de Acción (Reordenados) -->
+            <div id="action-buttons" class="flex gap-2 no-pdf">
+                <!-- 1. Botón Histórico (VERDE) -->
+                <button onclick="downloadHistoryExcel()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm border border-green-700 transition-all flex items-center gap-2" title="Descargar Base de Datos Excel">
+                    <i class="fas fa-file-excel"></i>
+                    <span class="text-sm font-bold hidden sm:inline">Base de Datos</span>
+                </button>
+
+                <!-- 2. Botón PDF (ROJO) -->
+                <button id="btn-download-pdf" onclick="openPDFOptions()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md flex items-center gap-2 hidden transition-all">
+                    <i class="fas fa-file-pdf"></i> 
+                    <span class="text-sm">PDF</span>
+                </button>
+
+                <!-- 3. Botón Config (GRIS) -->
+                <button onclick="toggleModal('modal-config')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold p-2.5 rounded-lg shadow-sm border border-slate-200 transition-all flex items-center gap-2 group" title="Configurar API Key">
+                    <i class="fas fa-cog group-hover:rotate-90 transition-transform duration-500"></i>
+                    <span class="text-xs font-bold hidden sm:inline">Config</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ZONA DE CARGA Y CONTROL -->
+        <div class="px-8 pt-6 pb-2 no-pdf">
+            <div id="drop-area" class="drop-zone rounded-lg p-12 text-center cursor-pointer bg-slate-50 hover:bg-slate-100 relative group mb-4 transition-all">
+                <input type="file" id="fileElem" multiple accept="application/pdf" class="hidden" onchange="handleFiles(this.files)">
+                <div class="pointer-events-none">
+                    <i class="fas fa-cloud-upload-alt text-5xl text-slate-300 mb-4 group-hover:text-deteco-brand transition-colors"></i>
+                    <p class="text-xl font-bold text-slate-600">Arrastra tus Cotizaciones (PDF)</p>
+                    <p class="text-sm text-slate-400 mt-2">Suéltalas aquí para comenzar el análisis automático</p>
+                </div>
+            </div>
+
+            <div id="file-control-panel" class="hidden bg-white border border-slate-200 rounded p-4 shadow-sm transition-all mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Documentos detectados:</div>
+                    <div id="process-status" class="text-xs font-bold text-deteco-brand hidden flex items-center gap-2">
+                        <i class="fas fa-circle-notch fa-spin"></i> IA Analizando documentos...
+                    </div>
+                </div>
+                
+                <ul id="file-ul" class="space-y-2 mb-4"></ul>
+                
+                <button id="btn-process" onclick="startFullProcess()" class="w-full bg-deteco-brand text-white font-bold py-3 rounded shadow hover:bg-orange-700 transition-colors flex justify-center items-center gap-2">
+                    <i class="fas fa-brain"></i> 
+                    <span>Procesar Cotizaciones</span>
+                </button>
+                
+                <div id="debug-console" class="hidden mt-4 console-log rounded h-32 overflow-y-auto p-3">
+                    <div class="text-slate-500 border-b border-slate-600 pb-1 mb-2 font-bold">LOG DE SISTEMA:</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN DE RESULTADOS -->
+        <div id="results-section" class="hidden animate-fade-in">
+            <div class="px-8 py-6 border-t border-slate-100">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h1 class="text-xl font-bold text-slate-800 uppercase tracking-tight">Análisis de Adquisiciones</h1>
+                        <p class="text-sm text-slate-500 font-medium mt-1">Comparativo con Histórico de Precios | <span id="history-badge" class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold hidden">Datos Históricos Activos</span></p>
+                    </div>
+                    <div class="text-right text-xs text-slate-500">
+                        <p>Responsable: <span class="font-bold text-slate-700">Iván Vivanco</span></p>
+                        <p id="fecha-actual">Fecha: 04/02/2026</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-8 pb-8 overflow-x-auto">
+                <table class="w-full text-sm text-left border-collapse" id="main-table">
+                    <thead id="table-head">
+                        <!-- Cabecera Dinámica -->
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-200 text-slate-700">
+                        <!-- Filas Dinámicas -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="px-8 pb-8 pt-4 border-t border-slate-100 flex justify-between items-end text-xs text-slate-400 bg-white">
+                <div class="w-full text-center sm:text-left">
+                    <p class="font-bold text-slate-600 uppercase tracking-wide">Uso Exclusivo para la empresa Deteco Ic Sa.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OPCIONES PDF -->
+    <div id="modal-pdf-options" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50 no-pdf">
+        <div class="modal-overlay absolute w-full h-full bg-slate-900 opacity-75 backdrop-blur-sm" onclick="toggleModal('modal-pdf-options')"></div>
+        <div class="modal-container bg-white w-full max-w-sm mx-auto rounded-lg shadow-2xl z-50 p-6 border-t-4 border-deteco-brand animate-fade-in-up">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                <h3 class="text-lg font-bold text-slate-800">Opciones de Descarga</h3>
+                <div class="cursor-pointer text-slate-400 hover:text-slate-600" onclick="toggleModal('modal-pdf-options')"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Ajuste de Página</p>
+                    <div class="flex gap-2">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="pdf-fit" value="onepage" class="peer hidden" checked>
+                            <div class="border border-slate-200 rounded p-3 text-center peer-checked:border-deteco-brand peer-checked:bg-orange-50 peer-checked:text-orange-700 transition-all hover:bg-slate-50">
+                                <i class="fas fa-expand-arrows-alt mb-1 block"></i><span class="text-xs font-bold">Una Sola Página</span>
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="pdf-fit" value="multipage" class="peer hidden">
+                            <div class="border border-slate-200 rounded p-3 text-center peer-checked:border-deteco-brand peer-checked:bg-orange-50 peer-checked:text-orange-700 transition-all hover:bg-slate-50">
+                                <i class="fas fa-copy mb-1 block"></i><span class="text-xs font-bold">Tamaño Real</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Orientación</p>
+                    <div class="flex gap-2">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="pdf-orient" value="landscape" class="peer hidden" checked>
+                            <div class="border border-slate-200 rounded p-3 text-center peer-checked:border-deteco-brand peer-checked:bg-orange-50 peer-checked:text-orange-700 transition-all hover:bg-slate-50">
+                                <i class="fas fa-image mb-1 block"></i><span class="text-xs font-bold">Horizontal</span>
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="pdf-orient" value="portrait" class="peer hidden">
+                            <div class="border border-slate-200 rounded p-3 text-center peer-checked:border-deteco-brand peer-checked:bg-orange-50 peer-checked:text-orange-700 transition-all hover:bg-slate-50">
+                                <i class="fas fa-file-alt mb-1 block"></i><span class="text-xs font-bold">Vertical</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <button onclick="executePDFDownload()" class="mt-6 w-full bg-slate-800 text-white font-bold py-3 rounded shadow hover:bg-slate-700 transition-colors">Generar PDF</button>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIGURACIÓN -->
+    <div id="modal-config" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50 no-pdf">
+        <div class="modal-overlay absolute w-full h-full bg-slate-900 opacity-75 backdrop-blur-sm" onclick="toggleModal('modal-config')"></div>
+        <div class="modal-container bg-white w-full max-w-md mx-auto rounded shadow-2xl z-50 p-6 border-t-4 border-slate-600">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800">Configuración IA</h3>
+                <div class="cursor-pointer text-slate-400 hover:text-slate-600" onclick="toggleModal('modal-config')"><i class="fas fa-times text-xl"></i></div>
+            </div>
+            <p class="text-sm text-slate-500 mb-4">Ingresa tu API Key de Gemini para activar el análisis.</p>
+            <div class="mb-4 relative">
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Gemini API Key</label>
+                <input type="password" id="apiKeyInput" class="w-full border border-slate-300 p-2 rounded text-sm focus:outline-none" placeholder="Pegar clave aquí...">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="saveConfig()" class="bg-deteco-brand text-white font-bold py-2 px-4 rounded text-sm hover:bg-orange-700 transition-colors">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === CONFIGURACIÓN Y ESTADO ===
+        const apiKey = ""; 
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        let selectedFiles = [];
+        let priceHistory = []; 
+
+        // === INICIALIZACIÓN ===
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            loadHistory(); 
+            document.getElementById('fecha-actual').innerText = 'Fecha: ' + new Date().toLocaleDateString('es-CL');
+        });
+
+        // === GESTIÓN DE HISTORIAL DE PRECIOS ===
+        function loadHistory() {
+            const savedHistory = localStorage.getItem('deteco_price_history');
+            if (savedHistory) {
+                try {
+                    priceHistory = JSON.parse(savedHistory);
+                    console.log("Historial cargado:", priceHistory.length, "registros");
+                    document.getElementById('history-badge').classList.remove('hidden');
+                } catch (e) {
+                    console.error("Error cargando historial", e);
+                }
+            }
+        }
+
+        function saveToHistory(newData) {
+            const today = new Date().toISOString().split('T')[0];
+            newData.items.forEach(item => {
+                newData.providers.forEach(prov => {
+                    const price = item.prices[prov];
+                    if (price !== null && price > 0) {
+                        const record = {
+                            date: today,
+                            item: item.item,
+                            provider: prov,
+                            price: price,
+                            u: item.u
+                        };
+                        priceHistory.push(record);
+                    }
+                });
+            });
+            localStorage.setItem('deteco_price_history', JSON.stringify(priceHistory));
+            log("Nuevos precios guardados en historial.", "success");
+        }
+
+        function getHistoryComparison(item, provider, currentPrice) {
+            const matches = priceHistory.filter(h => 
+                h.provider === provider && 
+                h.item.toLowerCase().includes(item.toLowerCase()) &&
+                h.price > 0
+            );
+            if (matches.length === 0) return null;
+            const lastRecord = matches[matches.length - 1];
+            if (lastRecord.price === currentPrice) return { type: 'equal', diff: 0 };
+            const diffPercent = ((currentPrice - lastRecord.price) / lastRecord.price) * 100;
+            return {
+                type: diffPercent > 0 ? 'up' : 'down',
+                diff: Math.abs(diffPercent).toFixed(1),
+                lastPrice: lastRecord.price
+            };
+        }
+
+        // GENERADOR EXCEL MEJORADO (Formato .XLS con estilos)
+        function downloadHistoryExcel() {
+            if (priceHistory.length === 0) return alert("No hay historial guardado aún.");
+            
+            // Usamos formato HTML para Excel para permitir estilos y colores
+            let tableHTML = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Historial Deteco</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+                <meta charset="UTF-8">
+                <style>
+                    table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+                    th { background-color: #ea580c; color: white; border: 1px solid #000000; padding: 10px; font-weight: bold; text-align: center; }
+                    td { border: 1px solid #cccccc; padding: 8px; text-align: left; }
+                    .price { text-align: right; font-weight: bold; color: #333333; }
+                    .date { text-align: center; }
+                </style>
+                </head>
+                <body>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Proveedor</th>
+                            <th>Ítem</th>
+                            <th>Unidad</th>
+                            <th>Precio Neto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            priceHistory.forEach(row => {
+                tableHTML += `
+                    <tr>
+                        <td class="date">${row.date}</td>
+                        <td>${row.provider}</td>
+                        <td>${row.item}</td>
+                        <td>${row.u}</td>
+                        <td class="price">$ ${row.price.toLocaleString('es-CL')}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `</tbody></table></body></html>`;
+
+            const blob = new Blob([tableHTML], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "Historial_Precios_Deteco_DTX.xls"; // Extensión .xls para que Excel lo abra con formato
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // === UI UTILS ===
+        function toggleModal(modalID) {
+            const modal = document.getElementById(modalID);
+            const body = document.querySelector('body');
+            if (modalID === 'modal-config' && modal.classList.contains('opacity-0')) loadConfig();
+            modal.classList.toggle('opacity-0');
+            modal.classList.toggle('pointer-events-none');
+            body.classList.toggle('modal-active');
+        }
+
+        function saveConfig() {
+            const key = document.getElementById('apiKeyInput').value;
+            if(key) localStorage.setItem('deteco_gemini_key', key.trim());
+            toggleModal('modal-config');
+        }
+        
+        function loadConfig() {
+            const key = localStorage.getItem('deteco_gemini_key');
+            if(key) document.getElementById('apiKeyInput').value = key;
+        }
+
+        function openPDFOptions() {
+            toggleModal('modal-pdf-options');
+        }
+
+        // === DRAG & DROP ===
+        const dropArea = document.getElementById('drop-area');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropArea.addEventListener(e, (ev) => { ev.preventDefault(); ev.stopPropagation(); }, false));
+        ['dragenter', 'dragover'].forEach(e => dropArea.classList.add('dragover'));
+        ['dragleave', 'drop'].forEach(e => dropArea.classList.remove('dragover'));
+        
+        dropArea.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+        dropArea.addEventListener('click', (e) => {
+            if(!e.target.closest('button')) document.getElementById('fileElem').click();
+        });
+
+        function handleFiles(files) {
+            const panel = document.getElementById('file-control-panel');
+            const list = document.getElementById('file-ul');
+            if (files.length > 0) {
+                selectedFiles = [...files];
+                panel.classList.remove('hidden');
+                list.innerHTML = '';
+                selectedFiles.forEach(file => {
+                    list.innerHTML += `<li class="text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-200 flex justify-between"><span><i class="fas fa-file-pdf text-red-500 mr-2"></i>${file.name}</span></li>`;
+                });
+            }
+        }
+
+        // === PROCESAMIENTO IA ===
+        async function startFullProcess() {
+            const btn = document.getElementById('btn-process');
+            const status = document.getElementById('process-status');
+            const debug = document.getElementById('debug-console');
+            
+            let effectiveKey = apiKey || localStorage.getItem('deteco_gemini_key');
+
+            if (!effectiveKey) {
+                alert("Falta la API Key. Configúrala en el engranaje.");
+                toggleModal('modal-config');
+                return;
+            }
+            if (selectedFiles.length === 0) return alert("Carga archivos primero.");
+
+            btn.disabled = true;
+            status.classList.remove('hidden');
+            debug.classList.remove('hidden');
+            debug.innerHTML = '<div class="text-slate-500 border-b border-slate-600 pb-1 mb-2 font-bold">LOG DE SISTEMA:</div>'; 
+
+            try {
+                log("Iniciando extracción de texto...", "info");
+                let fullContext = "";
+                
+                for (const file of selectedFiles) {
+                    log(`Leyendo: ${file.name}...`, "info");
+                    const text = await extractTextFromPDF(file);
+                    fullContext += `\n--- DOCUMENTO: ${file.name} ---\n${text}\n--- FIN DOCUMENTO ---\n`;
+                }
+                
+                log(`Texto extraído. Consultando a IA...`, "success");
+
+                const aiData = await callGeminiAPI(effectiveKey, fullContext);
+                
+                log("Análisis completado. Comparando con histórico...", "success");
+                renderDynamicTable(aiData);
+                
+                saveToHistory(aiData);
+                
+                document.getElementById('drop-area').classList.add('hidden');
+                document.getElementById('file-control-panel').classList.add('hidden');
+                document.getElementById('results-section').classList.remove('hidden');
+                document.getElementById('btn-download-pdf').classList.remove('hidden');
+
+                log("¡Proceso finalizado y guardado en BB.DD!", "success");
+
+            } catch (error) {
+                console.error(error);
+                log("ERROR: " + error.message, "error");
+                if (error.message.includes("400") || error.message.includes("API key")) {
+                    alert("Error de API Key. Verifica tu clave en Configuración.");
+                } else {
+                    alert("Error en el proceso. Revisa el log.");
+                }
+            } finally {
+                btn.disabled = false;
+                status.classList.add('hidden');
+            }
+        }
+
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                fullText += textContent.items.map(item => item.str).join(" ") + "\n";
+            }
+            return fullText;
+        }
+
+        async function callGeminiAPI(key, context) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
+            
+            // PROMPT MAESTRO IVÁN VIVANCO V.2
+            const prompt = `
+### ROLE
+Eres el "Core de Inteligencia Ferroviaria y de Construcción", un experto en materiales del mercado chileno con 20 años de experiencia en cubicación y presupuestos. Tu objetivo es normalizar datos heterogéneos de proveedores para permitir una comparación de precios 1:1.
+
+### CRITICAL LOGIC (REGLAS DE NEGOCIO CHILE):
+1. **Detección de Sinónimos Semánticos:**
+   - Cinta Masking = Cinta de Papel = Cinta de Enmascarar.
+   - Huincha = Flexómetro = Medidor.
+   - Volcanita = Yeso Cartón = Plancha GYP.
+   - Zinc-Alum = Plancha Ondulada = Techo de Zinc.
+   - Perfil Galvanizado = Metalcon = Perfil C/U.
+
+2. **Diferenciación Técnica (NO comparar si difieren en esto):**
+   - **Adhesivos:** No mezclar Bekron AC (Estándar) con Bekron DA (Pasta en balde) o Bekron Flexible.
+   - **Tuberías:** Diferenciar estrictamente PVC Sanitario (Gris) de PVC Hidráulico (Blanco/Presión) y Conduit (Naranjo/Eléctrico).
+   - **Madera:** Diferenciar Pino Bruto de Pino Cepillado y Madera Impregnada.
+
+3. **Normalización de Unidades de Medida:**
+   - 1 Tineta = 4 Galones = 18.9 Litros (aproximar según marca).
+   - 1 Galón = 3.78 Litros.
+   - Saco estándar = 25kg (Ley del saco Chile). Si detectas sacos de 40kg (antiguos o especiales), normaliza el precio a valor por kilo.
+
+### STEP-BY-STEP WORKFLOW:
+1. **Identificar Proveedor:** Extraer el RUT o Nombre (Sodimac, Construmart, Imperial, Ferretería Local, etc.).
+2. **Análisis de SKU/Código:** Si existe un código de barras o SKU, usarlo como llave primaria de coincidencia.
+3. **Mapeo de Atributos:** Extraer [Categoría], [Material Base], [Marca], [Formato/Medida].
+4. **Cálculo de Valor Unitario:** Convertir todo a una unidad base comparable (ej: $/Kg, $/Litro, $/Metro, $/Unidad).
+
+### OUTPUT SCHEMA (MATRICIAL STRICT):
+Para que la WebApp pueda visualizar la tabla comparativa, necesito que transformes tu análisis experto en este formato JSON específico:
+
+{
+  "providers": ["PROVEEDOR A", "PROVEEDOR B"],
+  "items": [
+    {
+      "item": "Nombre Normalizado del Producto (ej: Adhesivo Cerámico AC 25kg)",
+      "cant": 10,
+      "u": "Saco",
+      "specs": "Marca detectada / Diferencias (ej: Bekron vs Topex)",
+      "prices": {
+        "PROVEEDOR A": 4500,
+        "PROVEEDOR B": 4350
+      }
+    }
+  ]
+}
+
+GUARDRAILS:
+- NO ALUCINES: Si un ítem es ambiguo, márcalo en "specs".
+- PRECIOS: Netos (sin IVA).
+- IDIOMA: Español chileno.
+
+TEXTO DE ENTRADA:
+${context}
+            `;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            const data = await response.json();
+            if (data.error) throw new Error(data.error.message);
+            
+            let rawText = data.candidates[0].content.parts[0].text;
+            const firstBrace = rawText.indexOf('{');
+            const lastBrace = rawText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) rawText = rawText.substring(firstBrace, lastBrace + 1);
+            rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(rawText);
+        }
+
+        function renderDynamicTable(data) {
+            const thead = document.getElementById('table-head');
+            const tbody = document.getElementById('table-body');
+            const providers = data.providers;
+
+            let headerHTML = `
+                <tr class="bg-slate-800 text-white text-xs uppercase tracking-wider">
+                    <th class="py-3 px-4 font-bold border-r border-slate-600">Ítem / Material</th>
+                    <th class="py-3 px-2 text-center w-12 border-r border-slate-600 bg-slate-700">Cant.</th>
+                    <th class="py-3 px-2 text-center w-10 border-r border-slate-600">U.</th>
+                    <th class="py-3 px-4 font-bold w-1/4 border-r border-slate-600">Especificaciones</th>
+            `;
+
+            providers.forEach(prov => {
+                headerHTML += `<th class="py-3 px-2 text-right border-r border-slate-600 min-w-[100px]">${prov}</th>`;
+            });
+
+            headerHTML += `<th class="py-3 px-3 text-center w-24 bg-deteco-brand text-white font-bold">Sugerencia</th></tr>`;
+            thead.innerHTML = headerHTML;
+
+            tbody.innerHTML = '';
+            
+            data.items.forEach(row => {
+                let minPrice = Infinity;
+                let winnerName = '-';
+                
+                providers.forEach(prov => {
+                    const price = row.prices[prov];
+                    if (price !== null && price > 0 && price < minPrice) {
+                        minPrice = price;
+                        winnerName = prov;
+                    }
+                });
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-100";
+                
+                let rowHTML = `
+                    <td class="py-2 px-4 font-medium text-slate-800 text-xs">${row.item}</td>
+                    <td class="text-center font-bold bg-slate-50 text-slate-600 text-xs">${row.cant}</td>
+                    <td class="text-center text-[10px] text-slate-400">${row.u}</td>
+                    <td class="px-4 text-[10px] text-slate-500 leading-tight">${row.specs || '-'}</td>
+                `;
+
+                providers.forEach(prov => {
+                    const price = row.prices[prov];
+                    const isWinner = (prov === winnerName);
+                    const fmtPrice = price ? `$${price.toLocaleString('es-CL')}` : '-';
+                    const cellClass = isWinner ? 'winner-cell' : '';
+                    
+                    let historyTag = '';
+                    if (price) {
+                        const comparison = getHistoryComparison(row.item, prov, price);
+                        if (comparison) {
+                            if (comparison.type === 'up') {
+                                historyTag = `<span class="price-up" title="Subió respecto a ${comparison.lastPrice}">▲${comparison.diff}%</span>`;
+                            } else if (comparison.type === 'down') {
+                                historyTag = `<span class="price-down" title="Bajó respecto a ${comparison.lastPrice}">▼${comparison.diff}%</span>`;
+                            } else {
+                                historyTag = `<span class="price-equal" title="Mismo precio anterior">=</span>`;
+                            }
+                        }
+                    }
+
+                    rowHTML += `<td class="text-right px-2 font-mono text-xs ${cellClass}">${fmtPrice}${historyTag}</td>`;
+                });
+
+                let shortWinner = winnerName;
+                if(winnerName.length > 10) {
+                    if(winnerName.toUpperCase().includes("YOLITO")) shortWinner = "YOLITO";
+                    else if(winnerName.toUpperCase().includes("FERRETERIA")) shortWinner = "FERMET";
+                    else shortWinner = winnerName.substring(0, 10) + "..";
+                }
+                
+                rowHTML += `<td class="text-center font-bold text-deteco-brand text-[10px]">${shortWinner}</td>`;
+                
+                tr.innerHTML = rowHTML;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function log(msg, type) {
+            const debug = document.getElementById('debug-console');
+            const colorClass = type === 'success' ? 'log-success' : (type === 'error' ? 'log-error' : 'log-info');
+            const time = new Date().toLocaleTimeString('es-CL');
+            debug.innerHTML += `<div class="${colorClass} mb-1"><span class="opacity-50">[${time}]</span> > ${msg}</div>`;
+            debug.scrollTop = debug.scrollHeight;
+        }
+
+        function executePDFDownload() {
+            toggleModal('modal-pdf-options'); 
+            const btns = document.getElementById('action-buttons');
+            if(btns) btns.style.display = 'none';
+
+            const fitMode = document.querySelector('input[name="pdf-fit"]:checked').value;
+            const orientation = document.querySelector('input[name="pdf-orient"]:checked').value;
+
+            const element = document.getElementById('document-content');
+            element.classList.add('pdf-mode');
+
+            let opt = {
+                margin: [5, 5, 5, 5],
+                filename: 'Cuadro_Comparativo_Deteco_DTX.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: orientation }
+            };
+
+            if (fitMode === 'onepage') {
+                const contentWidth = element.offsetWidth;
+                const contentHeight = element.offsetHeight;
+                opt.jsPDF.format = [contentWidth * 0.264583 + 10, contentHeight * 0.264583 + 10]; 
+                opt.jsPDF.orientation = 'portrait'; 
+                opt.html2canvas.scale = 2; 
             }
 
-            return (
-                <div className="min-h-screen flex flex-col transition-colors duration-300">
-                    {loading && (
-                        <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-white p-6">
-                            <img src="logo 2.png" className="h-20 w-auto mb-6 animate-logo-ai" />
-                            <p className="font-black text-deteco animate-pulse tracking-[0.3em] mt-4 uppercase text-center">IA ANALIZANDO DOCUMENTO...</p>
-                        </div>
-                    )}
-
-                    <button onClick={toggleTheme} className="fixed bottom-6 right-6 z-50 bg-white dark:bg-slate-800 text-slate-800 dark:text-white p-4 rounded-full shadow-2xl border border-slate-200 dark:border-slate-700 active:scale-90 transition-all">
-                        <i data-lucide={darkMode ? "sun" : "moon"} size={24}></i>
-                    </button>
-
-                    <nav className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 sticky top-0 z-40 shadow-sm flex justify-between items-center transition-colors">
-                        <div className="flex items-center gap-3">
-                            <img src="logo.png" className="h-7 w-auto dark:brightness-150" />
-                            <h1 className="text-xs font-black text-slate-800 dark:text-white uppercase border-l pl-3 border-slate-200 dark:border-slate-700">Validación</h1>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setModals({...modals, upload: true})} className="bg-white dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl flex items-center gap-2 shadow-sm active:scale-95 transition-all">
-                                <img src="logo 2.png" className="h-4 w-auto dark:brightness-150" />
-                                <span className="text-[9px] font-black uppercase dark:text-white hide-mobile">Cargar IA</span>
-                            </button>
-                        </div>
-                    </nav>
-
-                    <main className="max-w-7xl mx-auto p-4 md:p-6 w-full flex-1">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            <div className="bg-white dark:bg-slate-900 p-4 rounded-premium shadow-sm border-l-4 border-deteco flex justify-between items-center transition-colors">
-                                <div><p className="text-[9px] font-bold text-slate-400 uppercase">Monto Total</p><h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">${totalGeneral.toLocaleString()}</h2></div>
-                                <div className="text-right"><p className="text-[9px] font-bold text-slate-400 uppercase">Items</p><h2 className="text-2xl font-black text-slate-800 dark:text-white">{filteredData.length}</h2></div>
-                            </div>
-                            <button onClick={() => setModals({...modals, validate: true})} className="bg-deteco text-white p-4 rounded-premium shadow-lg flex items-center justify-center gap-4 active:scale-95 transition-all">
-                                <i data-lucide="check-circle-2" size={24}></i>
-                                <span className="font-black text-xs uppercase tracking-widest leading-none">Validar Terreno</span>
-                            </button>
-                        </div>
-
-                        <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
-                            <div className="relative flex-1 min-w-[150px]">
-                                <i data-lucide="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14}></i>
-                                <input type="text" className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-xs outline-none focus:border-deteco transition-all" placeholder="Buscar equipo..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} />
-                            </div>
-                            <select className="bg-white dark:bg-slate-900 dark:text-white border dark:border-slate-800 rounded-xl px-4 font-black text-[9px] uppercase min-w-[90px]" value={filterObra} onChange={(e)=>setFilterObra(e.target.value)}>
-                                <option value="Todas">Obras</option>
-                                {obrasList.map(o => <option key={o} value={o}>{o}</option>)}
-                            </select>
-                            <button onClick={()=>setModals({...modals, add:true})} className="bg-slate-900 dark:bg-slate-800 text-white p-2.5 rounded-xl active:scale-90 transition-all"><i data-lucide="plus" size={18}></i></button>
-                            <button onClick={()=>setModals({...modals, obras:true})} className="bg-white dark:bg-slate-900 border dark:border-slate-800 dark:text-white p-2.5 rounded-xl active:scale-90 transition-all"><i data-lucide="settings" size={18}></i></button>
-                        </div>
-
-                        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border dark:border-slate-800 overflow-hidden transition-colors mb-6">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700 text-slate-400">
-                                        <tr><th className="uppercase text-[8px]">Obra</th><th className="uppercase text-[8px]">Descripción</th><th className="uppercase text-[8px] text-right">Neto</th><th></th></tr>
-                                    </thead>
-                                    <tbody className="divide-y dark:divide-slate-800">
-                                        {filteredData.length === 0 ? (
-                                            <tr><td colSpan="4" className="text-center py-8 text-slate-300 italic uppercase text-[10px]">Sin registros</td></tr>
-                                        ) : filteredData.map(row => (
-                                            <tr key={row.id} className="active:bg-slate-50 dark:active:bg-slate-800 group">
-                                                <td className="font-black text-slate-700 dark:text-slate-300">{row.obra}</td>
-                                                <td className="text-slate-500 dark:text-slate-400 italic truncate max-w-[150px]">{row.item}</td>
-                                                <td className="text-right font-black text-slate-900 dark:text-white">${row.neto.toLocaleString()}</td>
-                                                <td className="text-center">
-                                                    <button onClick={()=>{setForm({...row, nuevaObra:''}); setModals({...modals, edit:true})}} className="p-2 text-blue-500 hover:scale-110 transition-transform"><i data-lucide="edit-2" size={12}></i></button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-premium shadow-sm border border-slate-100 dark:border-slate-800 transition-colors mb-12">
-                            <h3 className="font-black text-slate-800 dark:text-white mb-4 flex items-center gap-2 uppercase text-xs">
-                                <i data-lucide="bar-chart-3" size={16} className="text-deteco"></i> Gasto por Obra
-                            </h3>
-                            <div className="space-y-3">
-                                {Object.entries(totalsByObra).map(([name, val]) => (
-                                    <div key={name} className="flex items-center justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase truncate max-w-[180px]">{name}</span>
-                                        <span className="font-black text-slate-800 dark:text-slate-300 text-sm">${val.toLocaleString()}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </main>
-
-                    {/* MODALES ADAPTADOS */}
-                    {modals.validate && (
-                        <div className="fixed inset-0 bg-slate-950/95 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border-b-8 border-deteco">
-                                <div className="p-6 bg-slate-950 dark:bg-slate-800 text-white text-center">
-                                    <h3 className="font-black text-xl uppercase italic leading-none">Firma Profesional</h3>
-                                    <p className="text-deteco font-bold text-[10px] uppercase mt-1">Deteco IC SA</p>
-                                </div>
-                                <form onSubmit={finalizeValidation} className="p-6 space-y-4">
-                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="Nombre Profesional" value={terrenoData.nombre} onChange={(e)=>setTerrenoData({...terrenoData, nombre:e.target.value})} required />
-                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="RUT (ej: 12.345.678-9)" value={terrenoData.rut} onChange={(e)=>setTerrenoData({...terrenoData, rut:e.target.value})} required />
-                                    <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" value={terrenoData.periodo} onChange={(e)=>setTerrenoData({...terrenoData, periodo:e.target.value})} required />
-                                    <div className="space-y-2 text-center">
-                                        <label className="text-[9px] font-black uppercase text-slate-400 italic">Dibuja tu firma debajo:</label>
-                                        <div className="signature-wrapper"><canvas ref={canvasRef}></canvas></div>
-                                        <button type="button" onClick={()=>signaturePadRef.current.clear()} className="text-[9px] font-bold text-red-400 uppercase">Limpiar Firma</button>
-                                    </div>
-                                    <button type="submit" className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs shadow-lg active:scale-90 transition-all">Validar y Descargar</button>
-                                    <button type="button" onClick={()=>setModals({...modals, validate:false})} className="w-full text-slate-400 font-bold text-[10px] uppercase mt-1">Cerrar</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {modals.upload && (
-                        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center">
-                                <img src="logo 2.png" className="h-12 mx-auto mb-4 dark:invert" />
-                                <h3 className="font-black text-lg uppercase mb-2 dark:text-white leading-none">Carga Inteligente</h3>
-                                <p className="text-[10px] text-slate-400 uppercase mb-4 tracking-widest">IA Gemini Engine</p>
-                                <input type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold mb-4 outline-none focus:border-deteco transition-all text-sm" placeholder="Nombre Proveedor..." value={providerName} onChange={(e)=>setProviderName(e.target.value)} />
-                                <button disabled={!providerName} onClick={()=>fileInputRef.current.click()} className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs disabled:opacity-30 active:scale-95 transition-all">Subir PDF / Excel</button>
-                                <input type="file" ref={fileInputRef} onChange={handleFile} className="hidden" accept=".xlsx,.xls,.pdf" />
-                                <button onClick={()=>setModals({...modals, upload:false})} className="w-full mt-4 text-slate-400 font-bold text-[10px] uppercase">Cerrar</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {modals.obras && (
-                        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-                                <h3 className="font-black text-lg uppercase mb-4 text-deteco">Gestión de Obras</h3>
-                                <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll no-scrollbar">
-                                    {obrasList.map(name => (
-                                        <div key={name} className="flex flex-col gap-1 pb-2 border-b dark:border-slate-800">
-                                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Nombre Actual: {name}</span>
-                                            <input type="text" className="p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-lg text-xs font-bold" defaultValue={name} onBlur={(e) => {
-                                                const newName = e.target.value.toUpperCase();
-                                                if(newName && newName !== name) setData(data.map(i => i.obra === name ? {...i, obra: newName} : i));
-                                            }} />
-                                        </div>
-                                    ))}
-                                </div>
-                                <button onClick={()=>setModals({...modals, obras:false})} className="w-full bg-slate-900 dark:bg-deteco text-white p-3 rounded-xl mt-6 font-black uppercase text-[10px] active:scale-95">Cerrar Gestión</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* REGISTRO MANUAL */}
-                    {(modals.add || modals.edit) && (
-                        <div className="fixed inset-0 bg-slate-950/70 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-                                <h3 className="font-black text-lg uppercase mb-4 dark:text-white italic leading-none">{modals.edit ? 'Editar' : 'Nuevo'} Item</h3>
-                                <div className="space-y-3">
-                                    <select className="w-full p-3 bg-slate-100 dark:bg-slate-800 dark:text-white rounded-xl font-bold text-xs outline-none" value={form.obra} onChange={(e)=>setForm({...form, obra:e.target.value})} required>
-                                        <option value="">Seleccionar Obra</option>
-                                        {obrasList.map(o => <option key={o} value={o}>{o}</option>)}
-                                        <option value="NUEVA">+ Obra Nueva</option>
-                                    </select>
-                                    {form.obra === 'NUEVA' && <input type="text" className="w-full p-3 bg-orange-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl font-bold text-xs" placeholder="Nombre Obra" onChange={(e)=>setForm({...form, nuevaObra:e.target.value})} />}
-                                    <input type="text" className="w-full p-3 bg-slate-100 dark:bg-slate-800 dark:text-white rounded-xl font-bold text-xs outline-none" placeholder="Descripción" value={form.item} onChange={(e)=>setForm({...form, item:e.target.value})} />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input type="number" className="p-3 bg-slate-100 dark:bg-slate-800 dark:text-white rounded-xl font-bold text-xs outline-none" placeholder="V. Día" value={form.valor} onChange={(e)=>setForm({...form, valor:Number(e.target.value)})} />
-                                        <input type="number" className="p-3 bg-slate-100 dark:bg-slate-800 dark:text-white rounded-xl font-bold text-xs outline-none" placeholder="Días" value={form.dias} onChange={(e)=>setForm({...form, dias:Number(e.target.value)})} />
-                                    </div>
-                                </div>
-                                <button onClick={()=>{
-                                    const obraFinal = form.obra === 'NUEVA' ? form.nuevaObra.toUpperCase() : form.obra;
-                                    const entry = { ...form, obra: obraFinal, neto: (Number(form.valor) || 0) * (Number(form.dias) || 0) };
-                                    if(form.id) setData(data.map(i=>i.id===form.id?entry:i));
-                                    else setData([...data, {...entry, id:Date.now()}]);
-                                    setModals({add:false, edit:false});
-                                }} className="w-full bg-deteco text-white p-4 rounded-xl font-black uppercase text-xs mt-4 transition-all active:scale-95 shadow-md">Guardar</button>
-                                <button onClick={()=>setModals({add:false, edit:false})} className="w-full mt-2 text-slate-400 font-bold text-[10px] uppercase text-center">Cerrar</button>
-                            </div>
-                        </div>
-                    )}
-
-                    <footer className="py-8 px-4 text-center border-t dark:border-slate-800 mt-auto transition-colors">
-                        <img src="logo.png" className="h-5 mx-auto grayscale opacity-30 dark:invert dark:opacity-50 mb-2" />
-                        <p className="text-[8px] font-black uppercase text-slate-300 dark:text-slate-600 tracking-[0.4em]">Deteco IC SA • Lampa</p>
-                        <p className="text-[9px] font-black uppercase text-deteco tracking-widest mt-1">Creado por Iván Vivanco • 2026</p>
-                    </footer>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.classList.remove('pdf-mode');
+                if(btns) btns.style.display = 'flex';
+            });
+        }
+        
+        document.getElementById('fecha-actual').innerText = 'Fecha: ' + new Date().toLocaleDateString('es-CL');
     </script>
+
 </body>
 </html>
